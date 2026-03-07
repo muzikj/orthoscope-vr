@@ -1,16 +1,29 @@
 using UnityEngine;
 
 using System.Threading.Tasks;
+using System.IO;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
-[RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class SpawnerSTL : MonoBehaviour
 {
-    public string initialPath = "C:/Users/Martin/Desktop/FBMI/projekt2/pacient_01e.stl";
+    // initial scale (.stl is millimeters, Unity is meters)
+    private readonly float _scale = 0.010f;
+
     public Material material;
 
-    private async void Start()
-    {         
-        await SpawnSTLAsync(initialPath);
+    private void OnEnable()
+    {
+        ScanEvents.OnImportScanRequested += HandleImportScanRequested;
+    }
+
+    private void OnDisable()
+    {
+        ScanEvents.OnImportScanRequested -= HandleImportScanRequested;
+    }
+
+    private async void HandleImportScanRequested(string path)
+    {
+        await SpawnSTLAsync(path);
     }
 
     public async Task SpawnSTLAsync(string path)
@@ -19,18 +32,46 @@ public class SpawnerSTL : MonoBehaviour
 
         if (mesh != null)
         {
-            GetComponent<MeshFilter>().mesh = mesh;
+            GameObject stl = new(Path.GetFileNameWithoutExtension(path));
+            stl.transform.SetPositionAndRotation(transform.position, transform.rotation);
+            stl.transform.localScale = Vector3.one * _scale;
 
+            // set the .stl mesh (geometry)
+            MeshFilter filter = stl.AddComponent<MeshFilter>();
+            filter.mesh = mesh;
+
+            // set the material (with a default fallback)
+            MeshRenderer renderer = stl.AddComponent<MeshRenderer>();
             if (material == null)
             {
                 material = new(Shader.Find("Universal Render Pipeline/Lit"));
             }
+            renderer.material = material;
 
-            GetComponent<MeshRenderer>().material = material;
+            // give it a collider for interactions (a mesh collider is out of the question for performance reasons, hence a simple box collider instead)
+            BoxCollider collider = stl.AddComponent<BoxCollider>();
+            collider.center = mesh.bounds.center;
+            collider.size = mesh.bounds.size;
+
+            // make it grabbable in VR (with snap-to-hand behavior off)
+            XRGrabInteractable grabInteractable = stl.AddComponent<XRGrabInteractable>();
+            grabInteractable.useDynamicAttach = true;
+
+            // disable collisions and disable gravity
+            if (!stl.TryGetComponent<Rigidbody>(out var rigidbody))
+            {
+                rigidbody = stl.AddComponent<Rigidbody>();
+            }
+            rigidbody.isKinematic = true;
+            rigidbody.useGravity = false;
+
+            ScanEvents.NotifyImportScanCompleted(true);
         }
         else
         {
             Debug.LogError($"Failed to load STL file at: {path}");
+
+            ScanEvents.NotifyImportScanCompleted(false);
         }
     }
 }

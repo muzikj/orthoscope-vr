@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 
 public static class ImporterSTL
 {
-    private readonly static float scale = 0.01f;
-
     private struct MeshData
     {
         public Vector3[] vertices;
@@ -30,20 +28,24 @@ public static class ImporterSTL
             return null;
         }
 
+        // offload parsing to a different thread for peformance (mesh building; however, has to be done on the main thread)
         MeshData meshData = await Task.Run(() => ParseSTL(path));
 
         Mesh mesh = new()
         {
             name = Path.GetFileNameWithoutExtension(path),
+
+            // if we have more than 2^16 (65K) vertices (almost always), we need to use 32-bit indices instead
             indexFormat = meshData.vertices.Length > 65535 ? IndexFormat.UInt32 : IndexFormat.UInt16,
-            
-            vertices = meshData.vertices,
-            normals = meshData.normals,
-            triangles = meshData.vertexOrder,
         };
 
+        // assign the geometry data to the mesh using the optimized set methods
+        mesh.SetVertices(meshData.vertices);
+        mesh.SetNormals(meshData.normals);
+        mesh.SetTriangles(meshData.vertexOrder, 0, false);
+
+        // make sure we have the correct bounding box (also, no need to recalculate the normals, as we already have them and need to save performance)
         mesh.RecalculateBounds();
-        mesh.RecalculateNormals();
 
         return mesh;
     }
@@ -70,9 +72,9 @@ public static class ImporterSTL
             // read all 3 verices of the triangle
             for (int j = 0; j < 3; j++)
             {
-                float triangleX = br.ReadSingle() * scale;
-                float triangleY = br.ReadSingle() * scale;
-                float triangleZ = br.ReadSingle() * scale;
+                float triangleX = br.ReadSingle();
+                float triangleY = br.ReadSingle();
+                float triangleZ = br.ReadSingle();
 
                 int vertexIndex = i * 3 + j;
 
