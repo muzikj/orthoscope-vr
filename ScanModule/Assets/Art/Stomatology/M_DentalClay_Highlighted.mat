@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: M_Dental
-  m_Shader: {fileID: -6465566751694194690, guid: 55712899a8289524d9787130cced9813, type: 3}
+  m_Name: M_DentalClay_Highlighted
+  m_Shader: {fileID: -6465566751694194690, guid: 5b916be32df82394f81e2cd1c1bbea11, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -24,7 +24,7 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
-    - _SampleTexture2D_1141d8ff9e354659a8bac588c71332f2_Texture_1_Texture2D:
+    - _T_MatCap:
         m_Texture: {fileID: 2800000, guid: ac5ec04c2b2c37c4a917ca732e6e1f55, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -42,13 +42,15 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _F_HighlightStrength: 5
     - _QueueControl: 0
     - _QueueOffset: 0
     - _XRMotionVectorsPass: 1
-    m_Colors: []
+    m_Colors:
+    - _C_HighlightShade: {r: 1, g: 0.47058815, b: 0.078431346, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!114 &4341397743783446176
+--- !u!114 &6863878414992896874
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}

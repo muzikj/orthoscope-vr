@@ -9,7 +9,7 @@ public class SpawnerSTL : MonoBehaviour
     // initial scale (.stl is millimeters, Unity is meters)
     private readonly float _scale = 0.010f;
 
-    public Material material;
+    public ModelTheme modelTheme;
 
     private void OnEnable()
     {
@@ -40,13 +40,8 @@ public class SpawnerSTL : MonoBehaviour
             MeshFilter filter = stl.AddComponent<MeshFilter>();
             filter.mesh = mesh;
 
-            // set the material (with a default fallback)
-            MeshRenderer renderer = stl.AddComponent<MeshRenderer>();
-            if (material == null)
-            {
-                material = new(Shader.Find("Universal Render Pipeline/Lit"));
-            }
-            renderer.material = material;
+            // add a dummy renderer
+            MeshRenderer _ = stl.AddComponent<MeshRenderer>();
 
             // give it a collider for interactions (a mesh collider is out of the question for performance reasons, hence a simple box collider instead)
             BoxCollider collider = stl.AddComponent<BoxCollider>();
@@ -64,6 +59,13 @@ public class SpawnerSTL : MonoBehaviour
             }
             rigidbody.isKinematic = true;
             rigidbody.useGravity = false;
+
+            // apply the default model theme
+            ScanController scanController = stl.AddComponent<ScanController>();
+            if (modelTheme != null)
+            {
+                scanController.modelTheme = modelTheme;
+            }
 
             ScanEvents.NotifyImportScanCompleted(true);
         }

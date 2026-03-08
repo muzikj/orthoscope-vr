@@ -58,4 +58,19 @@ public class UIManager : MonoBehaviour
             text.text = newText;
         }
     }
+
+    public void ClickDeleteScan()
+    {
+        ScanEvents.RequestDeleteScan();
+    }
+
+    public void ClickResetScan()
+    {
+        ScanEvents.RequestResetScan();
+    }
+
+    public void ClickChangeScale(float scaleFactor)
+    {
+        ScanEvents.RequestScaleScan(scaleFactor);
+    }
 }
