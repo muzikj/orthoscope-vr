@@ -1,15 +1,18 @@
 using UnityEngine;
+using UnityEngine.Rendering;
+using System.IO;
 
 using System.Threading.Tasks;
-using System.IO;
+using System.Collections.Generic;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
-public class SpawnerSTL : MonoBehaviour
+public class ScanSpawner : MonoBehaviour
 {
     // initial scale (.stl is millimeters, Unity is meters)
     private readonly float _scale = 0.010f;
 
-    public ModelTheme modelTheme;
+    public ModelTheme modelThemeVertexColor;
+    public ModelTheme modelThemeNoColor;
 
     private void OnEnable()
     {
@@ -23,13 +26,15 @@ public class SpawnerSTL : MonoBehaviour
 
     private async void HandleImportScanRequested(string path)
     {
-        await SpawnSTLAsync(path);
+        await SpawnScanAsync(path);
     }
 
-    public async Task SpawnSTLAsync(string path)
+    public async Task SpawnScanAsync(string path)
     {
-        //Mesh mesh = await ImporterSTL.LoadSTLAsync(path);
-        Mesh mesh = await ImporterPLY.LoadPLYAsync(path);
+        var Parser = path.GetParser();
+        if (Parser == null) return;
+
+        Mesh mesh = await Parser.ParseMeshAsync(path);
 
         if (mesh != null)
         {
@@ -37,7 +42,7 @@ public class SpawnerSTL : MonoBehaviour
             stl.transform.SetPositionAndRotation(transform.position, transform.rotation);
             stl.transform.localScale = Vector3.one * _scale;
 
-            // set the .stl mesh (geometry)
+            // set the mesh geometry
             MeshFilter filter = stl.AddComponent<MeshFilter>();
             filter.mesh = mesh;
 
@@ -61,20 +66,53 @@ public class SpawnerSTL : MonoBehaviour
             rigidbody.isKinematic = true;
             rigidbody.useGravity = false;
 
-            // apply the default model theme
+            // apply the corect model theme (for materials)
             ScanController scanController = stl.AddComponent<ScanController>();
-            if (modelTheme != null)
+            if (mesh.HasVertexAttribute(VertexAttribute.Color))
             {
-                scanController.modelTheme = modelTheme;
+                if (modelThemeVertexColor != null) scanController.modelTheme = modelThemeVertexColor;
+                else Debug.LogError("Missing ModelTheme for the VertexColor option!");
+            }
+            else
+            {
+                if (modelThemeNoColor != null) scanController.modelTheme = modelThemeNoColor;
+                else Debug.LogError("Missing ModelTheme for the non-VertexColor option!");
             }
 
             ScanEvents.NotifyImportScanCompleted(true);
         }
         else
         {
-            Debug.LogError($"Failed to load STL file at: {path}");
+            Debug.LogError($"Failed to load scan file: {path}");
 
             ScanEvents.NotifyImportScanCompleted(false);
         }
+    }
+}
+
+public static class ScanParserFactory
+{
+    public static readonly Dictionary<string, IScanParser> Parsers = new()
+    {
+        // Path.GetExtension returns with the ".", so ".stl", instead of just "stl"
+        {".stl", new ScanParserSTL()},
+        {".ply", new ScanParserPLY()},
+    };
+}
+
+public static class FileFormatExtensions
+{
+    public static IScanParser GetParser(this string path)
+    {
+        // avoid ".STL" x ".stl" capitalized shenanigans with ToLowerInvariant
+        string format = Path.GetExtension(path).ToLowerInvariant();
+
+        if (ScanParserFactory.Parsers.TryGetValue(format, out var parser))
+        {
+            return parser;
+        }
+
+        Debug.LogError($"Cannot parse file {path}. Unsupported type {format}!");
+        return null;
     }
 }

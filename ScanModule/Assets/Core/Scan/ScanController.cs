@@ -145,7 +145,7 @@ public class ScanController : MonoBehaviour
         transform.localRotation = _originalRotation;
     }
 
-    private void HandleScaleRequested(float scaleFactor)
+    private void HandleScaleRequested(float scaleFactor) // when changing the scale of e.g. upper and lower teeth scans, the gap inbetween will NOT be adequate when scaling up OR down, as we are not scaling relative to the origin of both the scans, but rather their two distinct INDIVIDUAL origins
     {
         if (!Selected) return;
 

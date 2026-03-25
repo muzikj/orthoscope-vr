@@ -1,71 +1,17 @@
 using UnityEngine;
-
-using UnityEngine.Rendering;
-
 using System.IO;
-using System.Threading.Tasks;
 
 using System.Text;
 using System.Collections.Generic;
 
-public static class ImporterPLY
+public class ScanParserPLY : ScanParser
 {
-    private struct MeshData
-    {
-        public Vector3[] vertices;
-        public int[] triangles;
-        public Color32[] colors;
-    }
-
-    public static async Task<Mesh> LoadPLYAsync(string path)
-    {
-        if (string.IsNullOrEmpty(path))
-        {
-            Debug.LogError("Path is null or empty.");
-            return null;
-        }
-
-        if (!File.Exists(path))
-        {
-            Debug.LogError($"File not found at path: {path}");
-            return null;
-        }
-
-        // offload parsing to a different thread for peformance (mesh building; however, has to be done on the main thread)
-        MeshData meshData = await Task.Run(() => ParsePLY(path));
-
-        Mesh mesh = new()
-        {
-            name = Path.GetFileNameWithoutExtension(path),
-
-            // if we have more than 2^16 (65K) vertices (almost always), we need to use 32-bit indices instead
-            indexFormat = meshData.vertices.Length > 65535 ? IndexFormat.UInt32 : IndexFormat.UInt16,
-        };
-
-        // assign the geometry data to the mesh using the optimized set methods
-        mesh.SetVertices(meshData.vertices);
-        mesh.SetTriangles(meshData.triangles, 0, false);
-
-        // try setting vertex colors, if present
-        if (meshData.colors != null)
-        {
-            mesh.SetColors(meshData.colors);
-        }
-
-        // we are missing normals, gotta get those sorted out
-        // also, make sure we have the correct bounding box
-        mesh.RecalculateNormals();
-        mesh.RecalculateBounds();
-
-        return mesh;
-    }
-
-    private static MeshData ParsePLY(string path)
+    protected override MeshData ParseScan(string path)
     {
         using FileStream fs = new(path, FileMode.Open, FileAccess.Read);
         using BinaryReader br = new(fs);
 
-        int vertexCount = 0, faceCount = 0, vertexStride = 0; // the stride is the total size of the entire data block in bytes (for color, position, unsued normals...)
+        int vertexCount = 0, faceCount = 0, vertexStride = 0; // the stride is the total size of the entire data block in bytes (for color, position, unused normals...)
         int rOffset = -1, gOffset = -1, bOffset = -1, aOffset = -1;
 
         // parse header for vertex color attributes and other properties we might need, like position, and those we do not want, like normals, confidence
