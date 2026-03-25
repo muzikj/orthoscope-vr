@@ -2,16 +2,22 @@ using UnityEngine;
 
 using TMPro;
 using System.Collections.Generic;
+using System;
 
 public class UIManager : MonoBehaviour
 {
+    [Header("Feedback Infographics")]
     public TextMeshProUGUI text;
+
+    [Header("Format Selection")]
+    public TMP_Dropdown formatDropdown;
 
     [Header("Dental Scan Selection")]
     public TMP_Dropdown scanDropdown;
-    public LocalDentalScanProvider scanProvider;
+    public LocalFileProvider scanProvider;
 
-    private List<DentalScanFileMeta> _availableScans = new();
+    private FileFormat _fileFormat;
+    private List<FileMeta> _availableScans = new();
 
     private void Awake()
     {
@@ -20,30 +26,54 @@ public class UIManager : MonoBehaviour
 
     private void Start()
     {
-        PopulateDropdown();
+        PopulateFormatOptions();
+        PopulateScans();
     }
 
-    private void PopulateDropdown()
+    private void PopulateFormatOptions()
+    {
+        if (formatDropdown == null) return;
+
+        formatDropdown.ClearOptions();
+
+        string[] formats = Enum.GetNames(typeof(FileFormat));
+        formatDropdown.AddOptions(new List<string>(formats));
+
+        formatDropdown.onValueChanged.AddListener(OnFormatChanged);
+    }
+
+    private void OnFormatChanged(int index)
+    {
+        FileFormat newFormat = (FileFormat)index;
+
+        if (_fileFormat != newFormat)
+        {
+            _fileFormat = newFormat;
+
+            PopulateScans();
+        }
+    }
+
+    private void PopulateScans()
     {
         if (scanDropdown == null || scanProvider == null) return;
 
         scanDropdown.ClearOptions();
 
         _availableScans.Clear();
-        _availableScans = scanProvider.GetAvailableScans();
+        _availableScans = scanProvider.GetAvailableFiles(_fileFormat);
 
         List<string> scanOptions = new();
-        foreach (DentalScanFileMeta scan in _availableScans)
+        foreach (FileMeta scan in _availableScans)
         {
             scanOptions.Add(scan.displayName);
         }
-
         scanDropdown.AddOptions(scanOptions);
     }
 
     public void ClickRefreshDropdown()
     {
-        PopulateDropdown();
+        PopulateScans();
 
         ChangeText("Scan list refreshed!");
         EnableText();
@@ -127,5 +157,11 @@ public class UIManager : MonoBehaviour
     public void ClickChangeScale(float scaleFactor)
     {
         ScanEvents.RequestScaleScan(scaleFactor);
+    }
+
+    private void OnDestroy()
+    {
+        // we have to disable the non-persistent event listener if destroyed
+        if (formatDropdown != null) formatDropdown.onValueChanged.RemoveListener(OnFormatChanged);
     }
 }

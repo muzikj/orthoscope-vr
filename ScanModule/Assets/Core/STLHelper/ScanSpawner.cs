@@ -100,7 +100,7 @@ public static class ScanParserFactory
     };
 }
 
-public static class FileFormatExtensions
+public static class FileParserExtensions
 {
     public static IScanParser GetParser(this string path)
     {
