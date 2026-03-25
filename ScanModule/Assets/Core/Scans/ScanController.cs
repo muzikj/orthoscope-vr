@@ -13,6 +13,7 @@ public class ScanController : MonoBehaviour
     private MeshRenderer _renderer;
     private XRGrabInteractable _grabInteractable;
 
+    private Vector3 _originalPosition;
     private Vector3 _originalScale;
     private Quaternion _originalRotation;
 
@@ -25,6 +26,7 @@ public class ScanController : MonoBehaviour
         _renderer = GetComponent<MeshRenderer>();
         _grabInteractable = GetComponent<XRGrabInteractable>();
 
+        _originalPosition = transform.position;
         _originalScale = transform.localScale;
         _originalRotation = transform.localRotation;
     }
@@ -46,7 +48,6 @@ public class ScanController : MonoBehaviour
                 _triggerHeldForLongEnough = true;
                 ToggleOptions();
             }
-            
         }    
     }
 
@@ -141,6 +142,7 @@ public class ScanController : MonoBehaviour
     {
         if (!Selected) return;
 
+        transform.position = _originalPosition;
         transform.localScale = _originalScale;
         transform.localRotation = _originalRotation;
     }

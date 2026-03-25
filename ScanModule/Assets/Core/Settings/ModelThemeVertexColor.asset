@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: ModelThemeVertexColor
   m_EditorClassIdentifier: Assembly-CSharp::ModelTheme
   defaultMaterial: {fileID: 2100000, guid: fadc543bfde31f2449b38306d68e0dbb, type: 2}
-  highlightedMaterial: {fileID: 7048601247072954131, guid: 47f3b271b50f14d4fbc351a0104e9d46, type: 3}
+  highlightedMaterial: {fileID: 2100000, guid: d80df4dff0665f74b8caeb5f8ebcab89, type: 2}

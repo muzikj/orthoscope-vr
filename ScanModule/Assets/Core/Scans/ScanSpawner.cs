@@ -8,8 +8,10 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class ScanSpawner : MonoBehaviour
 {
-    // initial scale (.stl is millimeters, Unity is meters)
-    private readonly float _scale = 0.010f;
+    // initial scale (.stl,.ply are millimeters, Unity is meters)
+    private readonly Vector3 _scale = 0.010f * Vector3.one;
+    // initial rotation (to have teeth in line with the view, as if looking at a patient)
+    private readonly Quaternion _rotation = Quaternion.Euler(-120f, 0f, 0f);
 
     public ModelTheme modelThemeVertexColor;
     public ModelTheme modelThemeNoColor;
@@ -38,36 +40,36 @@ public class ScanSpawner : MonoBehaviour
 
         if (mesh != null)
         {
-            GameObject stl = new(Path.GetFileNameWithoutExtension(path));
-            stl.transform.SetPositionAndRotation(transform.position, transform.rotation);
-            stl.transform.localScale = Vector3.one * _scale;
+            GameObject scan = new(Path.GetFileNameWithoutExtension(path));
+            scan.transform.SetPositionAndRotation(transform.position, _rotation);
+            scan.transform.localScale = _scale;
 
             // set the mesh geometry
-            MeshFilter filter = stl.AddComponent<MeshFilter>();
+            MeshFilter filter = scan.AddComponent<MeshFilter>();
             filter.mesh = mesh;
 
             // add a dummy renderer
-            MeshRenderer _ = stl.AddComponent<MeshRenderer>();
+            MeshRenderer _ = scan.AddComponent<MeshRenderer>();
 
             // give it a collider for interactions (a mesh collider is out of the question for performance reasons, hence a simple box collider instead)
-            BoxCollider collider = stl.AddComponent<BoxCollider>();
+            BoxCollider collider = scan.AddComponent<BoxCollider>();
             collider.center = mesh.bounds.center;
             collider.size = mesh.bounds.size;
 
             // make it grabbable in VR (with snap-to-hand behavior off)
-            XRGrabInteractable grabInteractable = stl.AddComponent<XRGrabInteractable>();
+            XRGrabInteractable grabInteractable = scan.AddComponent<XRGrabInteractable>();
             grabInteractable.useDynamicAttach = true;
 
             // disable collisions and disable gravity
-            if (!stl.TryGetComponent<Rigidbody>(out var rigidbody))
+            if (!scan.TryGetComponent<Rigidbody>(out var rigidbody))
             {
-                rigidbody = stl.AddComponent<Rigidbody>();
+                rigidbody = scan.AddComponent<Rigidbody>();
             }
             rigidbody.isKinematic = true;
             rigidbody.useGravity = false;
 
             // apply the corect model theme (for materials)
-            ScanController scanController = stl.AddComponent<ScanController>();
+            ScanController scanController = scan.AddComponent<ScanController>();
             if (mesh.HasVertexAttribute(VertexAttribute.Color))
             {
                 if (modelThemeVertexColor != null) scanController.modelTheme = modelThemeVertexColor;
