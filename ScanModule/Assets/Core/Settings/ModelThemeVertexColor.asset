@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 60d12d14912be3b40b62b94a28e0552d, type: 3}
-  m_Name: ModelThemeDefault
+  m_Name: ModelThemeVertexColor
   m_EditorClassIdentifier: Assembly-CSharp::ModelTheme
-  defaultMaterial: {fileID: 2100000, guid: bd8767b9868f5974b8e92e4e296d56ff, type: 2}
-  highlightedMaterial: {fileID: 2100000, guid: c42a3b367ec82794d86ccde77bfe33c9, type: 2}
+  defaultMaterial: {fileID: 2100000, guid: fadc543bfde31f2449b38306d68e0dbb, type: 2}
+  highlightedMaterial: {fileID: 7048601247072954131, guid: 47f3b271b50f14d4fbc351a0104e9d46, type: 3}

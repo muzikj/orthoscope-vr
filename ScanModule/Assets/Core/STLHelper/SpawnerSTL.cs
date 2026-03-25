@@ -28,7 +28,8 @@ public class SpawnerSTL : MonoBehaviour
 
     public async Task SpawnSTLAsync(string path)
     {
-        Mesh mesh = await ImporterSTL.LoadSTLAsync(path);
+        //Mesh mesh = await ImporterSTL.LoadSTLAsync(path);
+        Mesh mesh = await ImporterPLY.LoadPLYAsync(path);
 
         if (mesh != null)
         {
