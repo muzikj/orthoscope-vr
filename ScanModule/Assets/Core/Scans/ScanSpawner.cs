@@ -37,24 +37,36 @@ public class ScanSpawner : MonoBehaviour
         if (Parser == null) return;
 
         Mesh mesh = await Parser.ParseMeshAsync(path);
-
+        
         if (mesh != null)
         {
             GameObject scan = new(Path.GetFileNameWithoutExtension(path));
             scan.transform.SetPositionAndRotation(transform.position, _rotation);
             scan.transform.localScale = _scale;
+            scan.layer = LayerMask.NameToLayer("ScanGrab");
 
             // set the mesh geometry
             MeshFilter filter = scan.AddComponent<MeshFilter>();
             filter.mesh = mesh;
 
             // add a dummy renderer
-            MeshRenderer _ = scan.AddComponent<MeshRenderer>();
+            scan.AddComponent<MeshRenderer>();
 
-            // give it a collider for interactions (a mesh collider is out of the question for performance reasons, hence a simple box collider instead)
+            // give it a simpole box collider for interactions
             BoxCollider collider = scan.AddComponent<BoxCollider>();
             collider.center = mesh.bounds.center;
             collider.size = mesh.bounds.size;
+
+            // make a child object for raycast interactions (adding points, lines, etc.)
+            GameObject scanRaycast = new("RaycastHitBox");
+            scanRaycast.transform.SetParent(scan.transform, false);
+            scanRaycast.layer = LayerMask.NameToLayer("ScanRaycast");
+
+            // offload the expensive mesh baking to a background thread
+            MeshCollider raycastCollider = scanRaycast.AddComponent<MeshCollider>();
+            EntityId meshEntityId = mesh.GetEntityId(); // we have to cache the EntityId before moving onto a new thread with Task.Run
+            await Task.Run(() => Physics.BakeMesh(meshEntityId, false));
+            raycastCollider.sharedMesh = mesh;
 
             // make it grabbable in VR (with snap-to-hand behavior off)
             XRGrabInteractable grabInteractable = scan.AddComponent<XRGrabInteractable>();
@@ -79,6 +91,19 @@ public class ScanSpawner : MonoBehaviour
             {
                 if (modelThemeNoColor != null) scanController.modelTheme = modelThemeNoColor;
                 else Debug.LogError("Missing ModelTheme for the non-VertexColor option!");
+            }
+
+            // allow drawing marks and lines
+            scan.AddComponent<ScanSpline>();
+            if (!scan.TryGetComponent<LineRenderer>(out var lineRenderer))
+            {
+                lineRenderer = scan.AddComponent<LineRenderer>();
+            }
+            lineRenderer.startWidth = lineRenderer.endWidth = Config.Instance.lineWidth;
+            lineRenderer.positionCount = 0; // delete the default 0,0,0 to 0,0,1 line
+            if (Config.Instance.lineMaterial != null)
+            {
+                lineRenderer.material = Config.Instance.lineMaterial;
             }
 
             ScanEvents.NotifyImportScanCompleted(true);
