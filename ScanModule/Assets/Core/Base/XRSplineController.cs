@@ -33,8 +33,8 @@ public class XRSplineController : MonoBehaviour
 
         if (Physics.Raycast(pointerOrigin.position, pointerOrigin.forward, out RaycastHit hit, Config.Instance.raycastMaxDistance, Config.Instance.scanRaycastLayer))
         {
-            // we hit the correct layer, maintained by the helper child object of the Scan, so we need to get the parent who controls it
-            ScanSpline spline = hit.collider.GetComponentInParent<ScanSpline>();
+            // we have hit the correct layer, which is a mere helper child object of the Scan, so we need to get the parent who controls it and then fetch the ScanSpline component on one of its children
+            ScanSpline spline = hit.collider.transform.parent.GetComponentInChildren<ScanSpline>();
             
             if (spline != null)
             {

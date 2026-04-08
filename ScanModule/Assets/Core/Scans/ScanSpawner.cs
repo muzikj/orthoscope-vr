@@ -52,7 +52,7 @@ public class ScanSpawner : MonoBehaviour
             // add a dummy renderer
             scan.AddComponent<MeshRenderer>();
 
-            // give it a simpole box collider for interactions
+            // give it a simple box collider for interactions
             BoxCollider collider = scan.AddComponent<BoxCollider>();
             collider.center = mesh.bounds.center;
             collider.size = mesh.bounds.size;
@@ -93,17 +93,24 @@ public class ScanSpawner : MonoBehaviour
                 else Debug.LogError("Missing ModelTheme for the non-VertexColor option!");
             }
 
-            // allow drawing marks and lines
-            scan.AddComponent<ScanSpline>();
-            if (!scan.TryGetComponent<LineRenderer>(out var lineRenderer))
+            // allow drawing marks and tube splines
+            GameObject splineCanvas = new("SplineCanvas");
+            splineCanvas.transform.SetParent(scan.transform, false);
+
+            ScanSpline scanSpline = splineCanvas.AddComponent<ScanSpline>();
+            if (!splineCanvas.TryGetComponent<TubeRenderer>(out var tubeRenderer))
             {
-                lineRenderer = scan.AddComponent<LineRenderer>();
+                tubeRenderer = splineCanvas.AddComponent<TubeRenderer>();
             }
-            lineRenderer.startWidth = lineRenderer.endWidth = Config.Instance.lineWidth;
-            lineRenderer.positionCount = 0; // delete the default 0,0,0 to 0,0,1 line
-            if (Config.Instance.lineMaterial != null)
+
+            if (!splineCanvas.TryGetComponent<MeshRenderer>(out var tubeMeshRenderer))
             {
-                lineRenderer.material = Config.Instance.lineMaterial;
+                tubeMeshRenderer = splineCanvas.AddComponent<MeshRenderer>();
+            }
+
+            if (Config.Instance.splineMaterial != null)
+            {
+                tubeMeshRenderer.sharedMaterial = Config.Instance.splineMaterial;
             }
 
             ScanEvents.NotifyImportScanCompleted(true);

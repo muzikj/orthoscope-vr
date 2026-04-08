@@ -15,10 +15,18 @@ public class Config : MonoBehaviour
     public LayerMask scanRaycastLayer;
     [Tooltip("GameObject Prefab for the 3D mark.")]
     public GameObject markPrefab;
-    [Tooltip("Width of the spline.")]
-    public float lineWidth = 0.001f;
+    [Tooltip("Radius of the spline.")]
+    public float splineRadius = 0.005f;
+    [Tooltip("Offset for the spline surface to prevent z-fighting.")]
+    public float splineSurfaceOffset = 0.0005f;
+    [Tooltip("How far out to start the raycast (in meters).")]
+    public float projectionDistance = 0.05f;
+    [Tooltip("Number of segments per curve for the spline (how many segments are created per line, between two points that is).")]
+    public int splineCurveResolution = 20;
+    [Tooltip("Number of segments around the radius of the spline (in essence, how rounded or box-like the tube is).")]
+    public int splineRadialResolution = 16;
     [Tooltip("Material for the spline.")]
-    public Material lineMaterial;
+    public Material splineMaterial;
 
     private void Awake()
     {

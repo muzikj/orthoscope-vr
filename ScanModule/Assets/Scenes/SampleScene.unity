@@ -20165,8 +20165,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 256
   markPrefab: {fileID: 6421686284546096247, guid: db34f462e728e0b4d86bed3139d5fcd3, type: 3}
-  lineWidth: 0.0025
-  lineMaterial: {fileID: 2100000, guid: 1b5a2e6e2b518924dad2e0a1ee0d8b4c, type: 2}
+  splineRadius: 0.005
+  splineMaterial: {fileID: 2100000, guid: 1b5a2e6e2b518924dad2e0a1ee0d8b4c, type: 2}
 --- !u!114 &2129132400
 MonoBehaviour:
   m_ObjectHideFlags: 0
