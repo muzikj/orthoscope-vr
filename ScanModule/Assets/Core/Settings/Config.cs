@@ -4,6 +4,12 @@ public class Config : MonoBehaviour
 {
     public static Config Instance { get; private set; }
 
+    [Header("General Settings")]
+    [Tooltip("Default scale factor for the scans (in meters).")]
+    public float scanScale = 0.010f;
+    [Tooltip("Initial rotation (to have teeth in line with the view, as if looking at a patient)")]
+    public Quaternion scanRotation = Quaternion.Euler(-120f, 0f, 0f);
+
     [Header("Interaction Settings")]
     [Tooltip("Time in seconds to hold before triggering a hold action.")]
     public float holdThreshold = 0.35f;
@@ -15,6 +21,14 @@ public class Config : MonoBehaviour
     public LayerMask scanRaycastLayer;
     [Tooltip("GameObject Prefab for the 3D mark.")]
     public GameObject markPrefab;
+    [Tooltip("GameObject Prefab for the ghost mark (preview before placing - smaller than a normal Mark).")]
+    public GameObject ghostMarkPrefab;
+    [Tooltip("GameObject Prefab for the closing ghost mark (preview for closing the loop - bigger than a normal Mark).")]
+    public GameObject closingGhostMarkPrefab;
+    [Tooltip("Material for the spline.")]
+    public Material splineMaterial;
+    [Tooltip("Material for the loop spline (the spline that connects the last point to the first).")]
+    public Material loopSplineMaterial;
     [Tooltip("Radius of the spline.")]
     public float splineRadius = 0.005f;
     [Tooltip("Offset for the spline surface to prevent z-fighting.")]
@@ -22,11 +36,11 @@ public class Config : MonoBehaviour
     [Tooltip("How far out to start the raycast (in meters).")]
     public float projectionDistance = 0.05f;
     [Tooltip("Number of segments per curve for the spline (how many segments are created per line, between two points that is).")]
-    public int splineCurveResolution = 20;
+    public int splineCurveResolution = 16;
     [Tooltip("Number of segments around the radius of the spline (in essence, how rounded or box-like the tube is).")]
-    public int splineRadialResolution = 16;
-    [Tooltip("Material for the spline.")]
-    public Material splineMaterial;
+    public int splineRadialResolution = 8;
+    [Tooltip("The multiplier for the mark radius that is the threshold for snapping the last point to the first point to create a closed loop.")]
+    public float closeLoopSnappingThresholdMult = 0.9f;
 
     private void Awake()
     {

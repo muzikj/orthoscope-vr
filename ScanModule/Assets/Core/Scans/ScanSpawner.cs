@@ -8,11 +8,6 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class ScanSpawner : MonoBehaviour
 {
-    // initial scale (.stl,.ply are millimeters, Unity is meters)
-    private readonly Vector3 _scale = 0.010f * Vector3.one;
-    // initial rotation (to have teeth in line with the view, as if looking at a patient)
-    private readonly Quaternion _rotation = Quaternion.Euler(-120f, 0f, 0f);
-
     public ModelTheme modelThemeVertexColor;
     public ModelTheme modelThemeNoColor;
 
@@ -41,8 +36,8 @@ public class ScanSpawner : MonoBehaviour
         if (mesh != null)
         {
             GameObject scan = new(Path.GetFileNameWithoutExtension(path));
-            scan.transform.SetPositionAndRotation(transform.position, _rotation);
-            scan.transform.localScale = _scale;
+            scan.transform.SetPositionAndRotation(transform.position, Config.Instance.scanRotation);
+            scan.transform.localScale = Config.Instance.scanScale * Vector3.one;
             scan.layer = LayerMask.NameToLayer("ScanGrab");
 
             // set the mesh geometry

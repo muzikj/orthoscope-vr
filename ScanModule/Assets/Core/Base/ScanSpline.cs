@@ -4,7 +4,10 @@ using System.Collections.Generic;
 [RequireComponent(typeof(TubeRenderer))]
 public class ScanSpline : MonoBehaviour
 {
+    public bool bClosed { get; private set; } = false;
+
     private TubeRenderer _tubeRenderer;
+
     private List<Vector3> _markLocations = new();
     private List<Vector3> _markNormals = new();
     private List<GameObject> _markObjects = new();
@@ -14,32 +17,115 @@ public class ScanSpline : MonoBehaviour
         _tubeRenderer = GetComponent<TubeRenderer>();
     }
 
+    private void OnEnable()
+    {
+        ScanEvents.OnScaleRequested += HandleScaleRequested;
+    }
+
+    private void OnDisable()
+    {
+        ScanEvents.OnScaleRequested -= HandleScaleRequested;
+    }
+
+    public bool WillSnapToStart(Vector3 position, out Vector3 snapPosition, out Vector3 snapNormal)
+    {
+        snapPosition = position;
+        snapNormal = Vector3.up;
+
+        if (_markLocations.Count < 3) return false;
+
+        Vector3 firstPointWorld = transform.TransformPoint(_markLocations[0]); // has to be world-space, so it's not scaled
+        
+        float distanceToStart = Vector3.Distance(position, firstPointWorld);
+
+        float currentMarkWorldSize = Config.Instance.markPrefab != null ? Config.Instance.markPrefab.transform.localScale.x * transform.lossyScale.x : 1f;
+        float scaledSnapDistance = Config.Instance.closeLoopSnappingThresholdMult * currentMarkWorldSize;
+
+        if (distanceToStart <= scaledSnapDistance)
+        {
+            snapPosition = firstPointWorld;
+            snapNormal = transform.TransformDirection(_markNormals[0]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+
     public void AddMark(Vector3 position, Vector3 normal)
     {
-        Vector3 floatingPosition = position + (normal * Config.Instance.splineSurfaceOffset);
+        if (bClosed) return;
 
+        Vector3 localPosition = transform.InverseTransformPoint(position);
+        Vector3 localNormal = transform.InverseTransformDirection(normal);
+
+        // closing a loop point
+        if (WillSnapToStart(position, out _, out _))
+        {
+            bClosed = true;
+
+            _tubeRenderer.SetMaterial(Config.Instance.loopSplineMaterial);
+            _tubeRenderer.RenderTube(GenerateProjectedSpline(), bClosed);
+
+            return; // we don't want a new mark here
+        }
+
+        // regular point addition
         if (Config.Instance.markPrefab != null)
         {
-            GameObject mark = Instantiate(Config.Instance.markPrefab, floatingPosition, Quaternion.LookRotation(normal));
+            GameObject mark = Instantiate(Config.Instance.markPrefab, position, Quaternion.LookRotation(normal));
             mark.transform.SetParent(transform, true);
+            mark.transform.localScale = Config.Instance.markPrefab.transform.localScale;
             _markObjects.Add(mark);
         }
 
-        _markLocations.Add(transform.InverseTransformPoint(floatingPosition));
-        _markNormals.Add(transform.InverseTransformDirection(normal));
+        _markLocations.Add(localPosition);
+        _markNormals.Add(localNormal);
 
-        _tubeRenderer.RenderTube(GenerateProjectedSpline());
+        _tubeRenderer.RenderTube(GenerateProjectedSpline(), bClosed);
+    }
+
+    public void RemoveLastMark()
+    {
+        if (bClosed)
+        {
+            bClosed = false;
+
+            _tubeRenderer.SetMaterial(Config.Instance.splineMaterial);
+            _tubeRenderer.RenderTube(GenerateProjectedSpline(), bClosed);
+
+            return;
+        }
+
+        if (_markLocations.Count > 0)
+        {
+            _markLocations.RemoveAt(_markLocations.Count - 1);
+            _markNormals.RemoveAt(_markNormals.Count - 1);
+
+            if (_markObjects.Count > 0)
+            {
+                Destroy(_markObjects[^1]);
+                _markObjects.RemoveAt(_markObjects.Count - 1);
+            }
+
+            _tubeRenderer.RenderTube(GenerateProjectedSpline(), bClosed);
+        }
     }
 
     public void ClearMarks()
     {
+        bClosed = false;
+
+        _tubeRenderer.SetMaterial(Config.Instance.splineMaterial);
+
         _markLocations.Clear();
         _markNormals.Clear();
 
         foreach (GameObject mark in _markObjects) Destroy(mark);
         _markObjects.Clear();
 
-        _tubeRenderer.RenderTube(_markLocations);
+        _tubeRenderer.RenderTube(_markLocations, bClosed);
     }
 
     private List<Vector3> GenerateProjectedSpline()
@@ -47,14 +133,28 @@ public class ScanSpline : MonoBehaviour
         List<Vector3> splinePoints = new();
         if (_markLocations.Count < 2) return _markLocations;
 
-        // pad the lists for Catmull-Rom math to work on the first/last points
         List<Vector3> pts = new(_markLocations);
-        pts.Insert(0, _markLocations[0]);
-        pts.Add(_markLocations[^1]);
-
         List<Vector3> nrms = new(_markNormals);
-        nrms.Insert(0, _markNormals[0]);
-        nrms.Add(_markNormals[^1]);
+
+        // pad the lists for Catmull-Rom math to work on the first/last points
+        if (bClosed)
+        {
+            pts.Insert(0, _markLocations[^1]);
+            pts.Add(_markLocations[0]);
+            pts.Add(_markLocations[1]);
+
+            nrms.Insert(0, _markNormals[^1]);
+            nrms.Add(_markNormals[0]);
+            nrms.Add(_markNormals[1]);
+        }
+        else
+        {
+            pts.Insert(0, _markLocations[0]);
+            pts.Add(_markLocations[^1]);
+
+            nrms.Insert(0, _markNormals[0]);
+            nrms.Add(_markNormals[^1]);
+        }
 
         for (int i = 1; i < pts.Count - 2; i++)
         {
@@ -101,5 +201,10 @@ public class ScanSpline : MonoBehaviour
         Vector3 d = -p0 + 3f * p1 - 3f * p2 + p3;
 
         return 0.5f * (a + (b * t) + (t * t * c) + (t * t * t * d));
+    }
+
+    private void HandleScaleRequested(float scaleFactor)
+    {
+        _tubeRenderer.RenderTube(GenerateProjectedSpline(), bClosed);
     }
 }

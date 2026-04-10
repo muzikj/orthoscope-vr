@@ -22,7 +22,7 @@ public class TubeRenderer : MonoBehaviour
         GetComponent<MeshFilter>().sharedMesh = _mesh;
     }
 
-    public void RenderTube(List<Vector3> points)
+    public void RenderTube(List<Vector3> points, bool bClosed)
     {
         if (points == null || points.Count < 2)
         {
@@ -32,7 +32,7 @@ public class TubeRenderer : MonoBehaviour
         }
 
         OrientedPoint[] path = CalculateParallelTransportPath(points);
-        GenerateMeshGeometry(path);
+        GenerateMeshGeometry(path, bClosed);
     }
 
     private OrientedPoint[] CalculateParallelTransportPath(List<Vector3> points)
@@ -77,18 +77,21 @@ public class TubeRenderer : MonoBehaviour
         return path;
     }
 
-    private void GenerateMeshGeometry(OrientedPoint[] path)
+    private void GenerateMeshGeometry(OrientedPoint[] path, bool bClosed)
     {
-        int verticesCount = path.Length * Config.Instance.splineRadialResolution;
-        int trianglesCount = (path.Length - 1) * Config.Instance.splineRadialResolution * 6;
+        int ringCount = bClosed ? path.Length - 1: path.Length;
+        int verticesCount = ringCount * Config.Instance.splineRadialResolution;
+
+        int stitchCount = bClosed ? ringCount : ringCount - 1;
+        int trianglesCount = stitchCount * Config.Instance.splineRadialResolution * 6;
 
         Vector3[] vertices = new Vector3[verticesCount];
         int[] triangles = new int[trianglesCount];
 
-        float actualRadius = transform.lossyScale.x > 0 ? Config.Instance.splineRadius / transform.lossyScale.x : Config.Instance.splineRadius;
+        float actualRadius = Config.Instance.splineRadius / Config.Instance.scanScale;
 
         // generate 3D rings
-        for (int i = 0; i < path.Length; i++)
+        for (int i = 0; i < ringCount; i++)
         {
             Vector3 right = Vector3.Cross(path[i].Up, path[i].Forward).normalized;
 
@@ -103,14 +106,26 @@ public class TubeRenderer : MonoBehaviour
 
         // stitch the tri's
         int triIndex = 0;
-        for (int i = 0; i < path.Length - 1; i++)
+        for (int i = 0; i < stitchCount; i++)
         {
             for (int j = 0; j < Config.Instance.splineRadialResolution; j++)
             {
                 int current = i * Config.Instance.splineRadialResolution + j;
-                int next = current + Config.Instance.splineRadialResolution;
                 int currentPlus1 = i * Config.Instance.splineRadialResolution + ((j + 1) % Config.Instance.splineRadialResolution);
-                int nextPlus1 = next - j + ((j + 1) % Config.Instance.splineRadialResolution);
+                
+                
+                int next, nextPlus1;
+
+                if (bClosed && i == ringCount - 1) // if it's closed and we're at the last ring, wrap around to the first ring for stitching
+                {
+                    next = j;
+                    nextPlus1 = (j + 1) % Config.Instance.splineRadialResolution;
+                }
+                else
+                {
+                    next = current + Config.Instance.splineRadialResolution;
+                    nextPlus1 = next - j + ((j + 1) % Config.Instance.splineRadialResolution);
+                }
 
                 triangles[triIndex++] = current;
                 triangles[triIndex++] = next;
@@ -127,5 +142,10 @@ public class TubeRenderer : MonoBehaviour
         _mesh.SetTriangles(triangles, 0);
         _mesh.RecalculateNormals();
         _mesh.RecalculateBounds();
+    }
+
+    public void SetMaterial(Material material)
+    {
+        GetComponent<MeshRenderer>().sharedMaterial = material;
     }
 }

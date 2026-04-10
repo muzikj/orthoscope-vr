@@ -11471,6 +11471,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::XRSplineController
   pointerOrigin: {fileID: 1753488024}
   triggerAction: {fileID: 4569651981643831358, guid: c348712bda248c246b8c49b3db54643f, type: 3}
+  undoAction: {fileID: -3340417561900662588, guid: c348712bda248c246b8c49b3db54643f, type: 3}
 --- !u!1 &1138640740
 GameObject:
   m_ObjectHideFlags: 0
@@ -17126,6 +17127,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::XRSplineController
   pointerOrigin: {fileID: 1860531605}
   triggerAction: {fileID: -7041935504673642556, guid: c348712bda248c246b8c49b3db54643f, type: 3}
+  undoAction: {fileID: 5426558811607414728, guid: c348712bda248c246b8c49b3db54643f, type: 3}
 --- !u!1001 &1825945902
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -20159,14 +20161,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c066744a36f95044eab0c4e7124eeee8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Config
+  scanScale: 0.01
+  scanRotation: {x: -0.86602545, y: 0, z: 0, w: 0.49999997}
   holdThreshold: 0.35
   raycastMaxDistance: 3
   scanRaycastLayer:
     serializedVersion: 2
     m_Bits: 256
   markPrefab: {fileID: 6421686284546096247, guid: db34f462e728e0b4d86bed3139d5fcd3, type: 3}
-  splineRadius: 0.005
+  ghostMarkPrefab: {fileID: 4714554194231571099, guid: 44aac1c48eac36b488ee7528ab0a7e74, type: 3}
+  closingGhostMarkPrefab: {fileID: 108427168954656186, guid: 059d1974063ca65499e7fc311c28ef33, type: 3}
   splineMaterial: {fileID: 2100000, guid: 1b5a2e6e2b518924dad2e0a1ee0d8b4c, type: 2}
+  loopSplineMaterial: {fileID: 2100000, guid: 91ce920f0ac3e0249944dcb127efbbb2, type: 2}
+  splineRadius: 0.005
+  splineSurfaceOffset: 0.0005
+  projectionDistance: 0.05
+  splineCurveResolution: 16
+  splineRadialResolution: 8
+  closeLoopSnappingThresholdMult: 0.9
 --- !u!114 &2129132400
 MonoBehaviour:
   m_ObjectHideFlags: 0
