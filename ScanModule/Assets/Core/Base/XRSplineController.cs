@@ -116,17 +116,28 @@ public class XRSplineController : MonoBehaviour
 
     private void OnTriggerPressed(InputAction.CallbackContext context)
     {
-        if (_currentSpline != null && !_currentSpline.bClosed)
+        if (_currentSpline != null)
         {
             Transform activeGhost = _closingGhostMark.activeSelf ? _closingGhostMark.transform : _ghostMark.transform;
 
-            _currentSpline.AddMark(activeGhost.position, activeGhost.forward);
+            if (BaseBuilder.Instance != null && BaseBuilder.Instance.currentState != BaseBuilder.BuilderState.MarkGums)
+            {
+                BaseBuilder.Instance.AddPoint(activeGhost.position, activeGhost.forward, _currentSpline.transform);
+            }
+            else if (!_currentSpline.bClosed)
+            {
+                _currentSpline.AddMark(activeGhost.position, activeGhost.forward);
+            }
         }
     }
 
     private void OnUndoPressed(InputAction.CallbackContext context)
     {
-        if (_currentSpline != null)
+        if (BaseBuilder.Instance != null && BaseBuilder.Instance.currentState != BaseBuilder.BuilderState.MarkGums)
+        {
+            BaseBuilder.Instance.RemoveLastPoint();
+        }
+        else if (_currentSpline != null)
         {
             _currentSpline.RemoveLastMark();
         }

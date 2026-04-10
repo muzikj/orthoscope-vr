@@ -29,6 +29,10 @@ public class Config : MonoBehaviour
     public Material splineMaterial;
     [Tooltip("Material for the loop spline (the spline that connects the last point to the first).")]
     public Material loopSplineMaterial;
+    [Tooltip("Material for the in-progress line/plane.")]
+    public Material markProgressMat;
+    [Tooltip("Material for the completed line/plane.")]
+    public Material markCompleteMat;
     [Tooltip("Radius of the spline.")]
     public float splineRadius = 0.005f;
     [Tooltip("Offset for the spline surface to prevent z-fighting.")]
