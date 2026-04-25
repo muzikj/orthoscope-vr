@@ -52,7 +52,6 @@ public class ScanSpline : MonoBehaviour
         return false;
     }
 
-
     public void AddMark(Vector3 position, Vector3 normal)
     {
         if (bClosed) return;
@@ -174,6 +173,8 @@ public class ScanSpline : MonoBehaviour
 
         return splinePoints;
     }
+
+    public List<Vector3> GetSplinePoints() => GenerateProjectedSpline(); // TODO: seems like bad design, once again...
 
     private Vector3 ProjectOntoSurface(Vector3 localPoint, Vector3 localNormal)
     {

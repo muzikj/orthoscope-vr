@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
-using UnityEngine;
+using System.Threading.Tasks;
 
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class BaseBuilder : MonoBehaviour
@@ -10,11 +12,34 @@ public class BaseBuilder : MonoBehaviour
     public enum BuilderState { MarkOcclusal, MarkSagittal, MarkGums, Meshing }
     public BuilderState currentState = BuilderState.MarkOcclusal;
 
-    private List<Vector3> _occlusalPoints = new();
-    private List<Vector3> _sagittalPoints = new();
+    public enum OcclusalPoint { MolarRight = 0, IncisorMiddle = 1, MolarLeft = 2 };
+    public enum SagittalPoint { Front = 0, Back = 1 }
 
-    private List<GameObject> _occlusalMarks = new();
-    private List<GameObject> _sagittalMarks = new();
+    private readonly List<Vector3> _occlusalPoints = new();
+    private readonly List<Vector3> _sagittalPoints = new();
+
+    private readonly List<GameObject> _occlusalMarks = new();
+    private readonly List<GameObject> _sagittalMarks = new();
+
+    private readonly bool _bUpperJaw = true;
+
+    private struct PlinthSettings
+    {
+        public bool isUpperJaw;
+        public float skirtDepth;
+        public float baseHeight;
+        public float widePadding;
+        public float outwardFlare;
+        public float minDistance;
+    }
+
+    private struct Edge : IEquatable<Edge>
+    {
+        public int v1, v2;
+        public Edge(int a, int b) { v1 = Mathf.Min(a, b); v2 = Mathf.Max(a, b); }
+        public readonly bool Equals(Edge other) => v1 == other.v1 && v2 == other.v2;
+        public override readonly int GetHashCode() => (v1 * 397) ^ v2;
+    }
 
     private void Awake()
     {
@@ -28,16 +53,16 @@ public class BaseBuilder : MonoBehaviour
         }
     }
 
-    private void Update()
+    private async void Update()
     {
         // TODO: remove debug input and replace with proper UI buttons
         if (Keyboard.current != null && Keyboard.current.pKey.wasPressedThisFrame)
         {
-            AdvanceState();
+            await AdvanceStateAsync();
         }
     }
 
-    private void AdvanceState()
+    private async Task AdvanceStateAsync()
     {
         if (currentState == BuilderState.MarkOcclusal)
         {
@@ -49,6 +74,686 @@ public class BaseBuilder : MonoBehaviour
             currentState = BuilderState.MarkGums;
             Debug.Log("State Advanced: Now marking Gum Splines. TubeRenderer active!");
         }
+        else if (currentState == BuilderState.MarkGums)
+        {
+            currentState = BuilderState.Meshing;
+            Debug.Log("State Advanced: Now triggering ABO Base generation!");
+
+            ScanSpline activeSpline = FindFirstObjectByType<ScanSpline>(); // TODO: modular
+
+            if (activeSpline != null && activeSpline.bClosed)
+            {
+                MeshFilter scanMeshFilter = activeSpline.transform.parent.GetComponentInParent<MeshFilter>();
+
+                if (scanMeshFilter != null)
+                {
+                    Debug.Log($"Trimming scan debris on mesh: {scanMeshFilter.gameObject.name}...");
+                    await TrimScanAsync(scanMeshFilter, activeSpline);
+
+                    Debug.Log("Zipping the gap between the scan and the spline...");
+                    await ZipScanToSkirtAsync(scanMeshFilter, activeSpline);
+
+                    Debug.Log("Trimming & Zipping complete! Building the ABO Base...");
+                }
+                else
+                {
+                    Debug.LogWarning("Could not find MeshFilter to trim. Skipping trim step.");
+                }
+
+                await BaseGenerationPipelineAsync(activeSpline);
+            }
+            else
+            {
+                Debug.LogError("Cannot generate base: Gum spline is not closed, or missing.");
+            }
+        }
+    }
+
+    public async Task ZipScanToSkirtAsync(MeshFilter scanMeshFilter, ScanSpline skirtSpline)
+    {
+        // raw data on Main
+        Vector3[] scanVerts = scanMeshFilter.mesh.vertices;
+        int[] scanTris = scanMeshFilter.mesh.triangles;
+
+        // convert spline points to scan local space
+        List<Vector3> localSkirtPoints = new();
+        foreach (Vector3 pt in skirtSpline.GetSplinePoints())
+        {
+            Vector3 worldPt = skirtSpline.transform.TransformPoint(pt);
+            localSkirtPoints.Add(scanMeshFilter.transform.InverseTransformPoint(worldPt));
+        }
+
+        // offload calcualtions to a Thread
+        var (zipperVerts, zipperTris) = await Task.Run(() =>
+        {
+            return ProcessZipper(scanVerts, scanTris, localSkirtPoints);
+        });
+
+        if (zipperVerts.Length == 0)
+        {
+            Debug.LogWarning("Zipper failed to find a continuous boundary. Skipping zip.");
+            return;
+        }
+
+        // build the zipper mesh on Main
+        Mesh zipperMesh = new()
+        {
+            name = "ABO_Zipper_Bridge",
+            vertices = zipperVerts,
+            triangles = zipperTris
+        };
+        zipperMesh.RecalculateNormals();
+        zipperMesh.RecalculateBounds();
+
+        // spawn where the scan is
+        GameObject zipperObj = new("Zipper_Bridge");
+        zipperObj.transform.SetPositionAndRotation(scanMeshFilter.transform.position, scanMeshFilter.transform.rotation);
+        zipperObj.transform.SetParent(scanMeshFilter.transform, true);
+        zipperObj.transform.localScale = Vector3.one;
+
+        MeshFilter filter = zipperObj.AddComponent<MeshFilter>();
+        filter.sharedMesh = zipperMesh;
+
+        MeshRenderer renderer = zipperObj.AddComponent<MeshRenderer>();
+        renderer.sharedMaterial = Config.Instance.markCompleteMat;
+    }
+
+    private (Vector3[], int[]) ProcessZipper(Vector3[] scanVerts, int[] scanTris, List<Vector3> localSkirtPoints)
+    {
+        List<int> boundaryIndices = GetLongestBoundaryLoop(scanTris);
+        if (boundaryIndices.Count == 0) return (new Vector3[0], new int[0]);
+
+        List<Vector3> scanRimPts = new();
+        foreach (int idx in boundaryIndices) scanRimPts.Add(scanVerts[idx]);
+
+        // auto-align, i.e. finding the absolute closest pair to start
+        int bestScanIdx = 0, bestSkirtIdx = 0;
+        float minDst = float.MaxValue;
+        for (int i = 0; i < scanRimPts.Count; i++)
+        {
+            for (int j = 0; j < localSkirtPoints.Count; j++)
+            {
+                float d = (scanRimPts[i] - localSkirtPoints[j]).sqrMagnitude;
+                if (d < minDst)
+                {
+                    minDst = d;
+                    bestScanIdx = i;
+                    bestSkirtIdx = j;
+                }
+            }
+        }
+
+        // test, which direction on the skirt loop keeps us closer to the scan loop
+        int testNextScan = (bestScanIdx + 1) % scanRimPts.Count;
+        int testNextSkirtFwd = (bestSkirtIdx + 1) % localSkirtPoints.Count;
+        int testNextSkirtRev = (bestSkirtIdx - 1 + localSkirtPoints.Count) % localSkirtPoints.Count;
+
+        float distFwd = (scanRimPts[testNextScan] - localSkirtPoints[testNextSkirtFwd]).sqrMagnitude;
+        float distRev = (scanRimPts[testNextScan] - localSkirtPoints[testNextSkirtRev]).sqrMagnitude;
+
+        // if stepping backwards is a shorter distance, arrays are crossing, so will reverse them so they are running in parallel
+        if (distRev < distFwd)
+        {
+            localSkirtPoints.Reverse();
+            bestSkirtIdx = (localSkirtPoints.Count - 1) - bestSkirtIdx; // reversing completely flips the optimal starting point
+        }
+
+        List<Vector3> zipperVerts = new();
+        zipperVerts.AddRange(scanRimPts);
+        int skirtOffset = zipperVerts.Count;
+        zipperVerts.AddRange(localSkirtPoints);
+
+        List<int> zipperTris = GreedilyZipLoops(scanRimPts, 0, localSkirtPoints, skirtOffset, bestScanIdx, bestSkirtIdx);
+
+        return (zipperVerts.ToArray(), zipperTris.ToArray());
+    }
+
+    private List<int> GreedilyZipLoops(List<Vector3> scanRimPts, int scanOffset, List<Vector3> skirtPts, int skirtOffset, int startScanIdx, int startSkirtIdx)
+    {
+        List<int> zipperTris = new();
+        int scanLen = scanRimPts.Count;
+        int skirtLen = skirtPts.Count;
+
+        int scanWalk = 0, skirtWalk = 0;
+
+        while (scanWalk < scanLen || skirtWalk < skirtLen)
+        {
+            int currScan = (startScanIdx + scanWalk) % scanLen;
+            int currSkirt = (startSkirtIdx + skirtWalk) % skirtLen;
+
+            int nextScan = (startScanIdx + scanWalk + 1) % scanLen;
+            int nextSkirt = (startSkirtIdx + skirtWalk + 1) % skirtLen;
+
+            bool stepScan;
+            if (scanWalk >= scanLen)
+            {
+                stepScan = false;
+            }
+            else if (skirtWalk >= skirtLen)
+            {
+                stepScan = true;
+            }
+            else
+            {
+                float distIfScanSteps = (scanRimPts[nextScan] - skirtPts[currSkirt]).sqrMagnitude;
+                float distIfSkirtSteps = (scanRimPts[currScan] - skirtPts[nextSkirt]).sqrMagnitude;
+                stepScan = distIfScanSteps < distIfSkirtSteps;
+            }
+
+            int v1 = currScan + scanOffset;
+            int v2, v3;
+
+            if (stepScan)
+            {
+                v2 = nextScan + scanOffset;
+                v3 = currSkirt + skirtOffset;
+                scanWalk++;
+            }
+            else
+            {
+                v2 = nextSkirt + skirtOffset;
+                v3 = currSkirt + skirtOffset;
+                skirtWalk++;
+
+            }
+
+            if (_bUpperJaw)
+            { 
+                zipperTris.Add(v1);
+                zipperTris.Add(v3);
+                zipperTris.Add(v2);
+            }
+            else
+            {
+                zipperTris.Add(v1);
+                zipperTris.Add(v2);
+                zipperTris.Add(v3);
+            }
+        }
+
+        return zipperTris;
+    }
+
+    private List<int> GetLongestBoundaryLoop(int[] triangles)
+    {
+        Dictionary<Edge, int> edgeCounts = new();
+        Dictionary<Edge, (int from, int to)> directedEdgeMap = new();
+
+        // count edges, preserving the original winding directions
+        for (int i = 0; i < triangles.Length; i += 3)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                int vA = triangles[i + j];
+                int vB = triangles[i + ((j + 1) % 3)];
+                Edge e = new(vA, vB);
+
+                if (!edgeCounts.ContainsKey(e))
+                {
+                    edgeCounts[e] = 1;
+                    directedEdgeMap[e] = (vA, vB);
+                }
+                else
+                {
+                    edgeCounts[e]++;
+                }
+            }
+        }
+
+        // isolate the boundary (if an edge is not shared by any other triangles, i.e. Count == 1, it is exposed)
+        Dictionary<int, int> boundaryLinks = new Dictionary<int, int>();
+        foreach (var kvp in edgeCounts)
+        {
+            if (kvp.Value == 1)
+            {
+                var (from, to) = directedEdgeMap[kvp.Key];
+                boundaryLinks[from] = to;
+            }
+        }
+
+        // chain edges into continuous loops
+        List<List<int>> loops = new();
+        HashSet<int> visited = new();
+
+        foreach (int startNode in boundaryLinks.Keys)
+        {
+            if (visited.Contains(startNode)) continue;
+
+            List<int> currentLoop = new List<int>();
+            int curr = startNode;
+
+            while (!visited.Contains(curr))
+            {
+                visited.Add(curr);
+                currentLoop.Add(curr);
+
+                if (boundaryLinks.TryGetValue(curr, out int nextNode))
+                {
+                    curr = nextNode;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            loops.Add(currentLoop);
+        }
+
+        // we are only interested in the longest loop, which should be the jaw cut loop, thus ignoring any micro-holes in teeth topology
+        List<int> longestLoop = new();
+        foreach (var loop in loops)
+        {
+            if (loop.Count > longestLoop.Count) longestLoop = loop;
+        }
+
+        return longestLoop;
+    }
+
+    private async Task BaseGenerationPipelineAsync(ScanSpline spline)
+    {
+        Debug.Log("Calculating ABO Space...");
+        Quaternion baseRotation = CalculateRotation();
+
+        Debug.Log("Extracting spline points.");
+        List<Vector3> splinePoints = spline.GetSplinePoints();
+
+        Debug.Log("Generating watertight ABO Base...");
+        PlinthSettings settings = new()
+        {
+            isUpperJaw = _bUpperJaw,
+            skirtDepth = Config.Instance.skirtDepth / Config.Instance.scanScale,
+            baseHeight = Config.Instance.baseHeight / Config.Instance.scanScale,
+            widePadding = Config.Instance.widePadding / Config.Instance.scanScale,
+            outwardFlare = Config.Instance.outwardFlare / Config.Instance.scanScale,
+            minDistance = Config.Instance.minDistance,
+        };
+
+        var (vertices, triangles) = await Task.Run(() =>
+        {
+            return ProcessPlinthBaseMath(splinePoints, baseRotation, settings);
+        });
+
+        BuildFinalBaseObject(vertices, triangles, spline, baseRotation);
+    }
+
+    private void BuildFinalBaseObject(Vector3[] vertices, int[] triangles, ScanSpline spline, Quaternion baseRotation)
+    {
+        Mesh finalBaseMesh = new()
+        {
+            name = "ABO_Plinth_Base",
+            vertices = vertices,
+            triangles = triangles
+        };
+        finalBaseMesh.RecalculateBounds();
+        finalBaseMesh.RecalculateNormals();
+
+        GameObject orthoBase = new("Ortho_Base_Final");
+        orthoBase.transform.SetPositionAndRotation(spline.transform.position, spline.transform.rotation);
+        orthoBase.transform.SetParent(spline.transform, true);
+        orthoBase.transform.localScale = Vector3.one;
+
+        MeshFilter filter = orthoBase.AddComponent<MeshFilter>();
+        filter.sharedMesh = finalBaseMesh;
+
+        MeshRenderer renderer = orthoBase.AddComponent<MeshRenderer>();
+        renderer.sharedMaterial = Config.Instance.markCompleteMat;
+
+        // rotate the base top to be perpendicular to Unity's scene floor
+        Vector3 perpendicularRotation = new(
+            baseRotation.eulerAngles.x,
+            baseRotation.eulerAngles.y * (-1) + 180f,
+            baseRotation.eulerAngles.z * (-1) + 180f
+        );
+
+        spline.transform.parent.transform.eulerAngles = perpendicularRotation;
+    }
+
+    public async Task TrimScanAsync(MeshFilter scanMeshFilter, ScanSpline cutSpline)
+    {
+        Mesh scanMesh = scanMeshFilter.mesh;
+
+        Vector3[] rawVerts = scanMesh.vertices;
+        int[] rawTris = scanMesh.triangles;
+
+        Color[] rawColors = scanMesh.colors;
+        bool hasColors = rawColors != null && rawColors.Length > 0;
+
+        // coordinate translation
+        List<Vector3> localTubePoints = new();
+        foreach (Vector3 pt in cutSpline.GetSplinePoints())
+        {
+            Vector3 worldPt = cutSpline.transform.TransformPoint(pt); // local spline to World-Space
+            Vector3 meshLocalPt = scanMeshFilter.transform.InverseTransformPoint(worldPt); // World-Space to Mesh's local space
+
+            localTubePoints.Add(meshLocalPt);
+        }
+
+        var (cleanedVerts, cleanedTris, cleanedColors) = await Task.Run(() =>
+        {
+            return ProcessMeshTrimmingAndBFS(rawVerts, rawTris, rawColors, localTubePoints, hasColors);
+        });
+
+        scanMesh.Clear();
+        scanMesh.vertices = cleanedVerts;
+
+        if (hasColors)
+        {
+            scanMesh.colors = cleanedColors;
+        }
+
+        scanMesh.triangles = cleanedTris;
+        scanMesh.RecalculateNormals();
+        scanMesh.RecalculateBounds();
+
+        if (scanMeshFilter.TryGetComponent<MeshCollider>(out var collider))
+        {
+            collider.sharedMesh = scanMesh;
+        }
+    }
+
+    private (Vector3[], int[], Color[]) ProcessMeshTrimmingAndBFS(Vector3[] verts, int[] tris, Color[] colors, List<Vector3> tubePoints, bool hasColors)
+    {
+        float cutRadius = Config.Instance.cutRadius / Config.Instance.scanScale;
+        float cutRadiusSq = cutRadius * cutRadius;
+
+        int numVerts = verts.Length;
+        int numTris = tris.Length / 3;
+
+        // find the vertices that need be trimmed based on the tube
+        bool[] isBadVertex = new bool[numVerts];
+        for (int i = 0; i < numVerts; i++)
+        {
+            Vector3 v = verts[i];
+            foreach (Vector3 tp in tubePoints)
+            {
+                if ((v - tp).sqrMagnitude <= cutRadiusSq)
+                {
+                    isBadVertex[i] = true;
+                    break;
+                }
+            }
+        }
+
+        // delete the tri's and build an adjacency map
+        List<int> keptTriIndices = new();
+        List<int>[] vertexToTris = new List<int>[numVerts];
+
+        for (int i = 0; i < numTris; i++)
+        {
+            int v1 = tris[i * 3];
+            int v2 = tris[i * 3 + 1];
+            int v3 = tris[i * 3 + 2];
+
+            if (!isBadVertex[v1] && !isBadVertex[v2] && !isBadVertex[v3])
+            {
+                keptTriIndices.Add(i);
+
+                if (vertexToTris[v1] == null)
+                {
+                    vertexToTris[v1] = new List<int>();
+                }
+
+                if (vertexToTris[v2] == null)
+                {
+                    vertexToTris[v2] = new List<int>();
+                }
+
+                if (vertexToTris[v3] == null)
+                {
+                    vertexToTris[v3] = new List<int>();
+                }
+
+                vertexToTris[v1].Add(i);
+                vertexToTris[v2].Add(i);
+                vertexToTris[v3].Add(i);
+            }
+        }
+
+        // breadth-first search to find the islands of good and bad vertices (the largest one should be our desired remainding teeth scan)
+        bool[] visitedTris = new bool[numTris];
+        List<int> largestIsland = new();
+
+        foreach (int startTri in keptTriIndices)
+        {
+            if (visitedTris[startTri]) continue;
+
+            List<int> currentIsland = new List<int>();
+            Queue<int> queue = new Queue<int>();
+
+            queue.Enqueue(startTri);
+            visitedTris[startTri] = true;
+
+            while (queue.Count > 0)
+            {
+                int currTri = queue.Dequeue();
+                currentIsland.Add(currTri);
+
+                int v1 = tris[currTri * 3];
+                int v2 = tris[currTri * 3 + 1];
+                int v3 = tris[currTri * 3 + 2];
+
+                void CheckNeighbors(int v)
+                {
+                    if (vertexToTris[v] != null)
+                    {
+                        foreach (int neighborTri in vertexToTris[v])
+                        {
+                            if (!visitedTris[neighborTri])
+                            {
+                                visitedTris[neighborTri] = true;
+                                queue.Enqueue(neighborTri);
+                            }
+                        }
+                    }
+                }
+
+                CheckNeighbors(v1);
+                CheckNeighbors(v2);
+                CheckNeighbors(v3);
+            }
+
+            if (currentIsland.Count > largestIsland.Count)
+            {
+                largestIsland = currentIsland;
+            }
+        }
+
+        // rebuild the mesh data, preserving color (if present) from the .ply
+        Dictionary<int, int> oldToNewVertexMap = new();
+        List<Vector3> finalVerts = new();
+        List<int> finalTris = new();
+        List<Color> finalColors = new();
+
+        foreach (int triIndex in largestIsland)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                int oldVertIndex = tris[triIndex * 3 + j];
+
+                if (!oldToNewVertexMap.TryGetValue(oldVertIndex, out int newVertIndex))
+                {
+                    newVertIndex = finalVerts.Count;
+                    oldToNewVertexMap[oldVertIndex] = newVertIndex;
+
+                    finalVerts.Add(verts[oldVertIndex]);
+
+                    if (hasColors)
+                    {
+                        finalColors.Add(colors[oldVertIndex]);
+                    }
+                }
+
+                finalTris.Add(newVertIndex);
+            }
+        }
+
+        return (finalVerts.ToArray(), finalTris.ToArray(), finalColors.ToArray());
+    }
+
+    private (Vector3[], int[]) ProcessPlinthBaseMath(List<Vector3> splinePoints, Quaternion baseRotation, PlinthSettings settings)
+    {
+        // clean the spline up
+        List<Vector3> filteredPoints = new()
+        {
+            splinePoints[0]
+        };
+
+        for (int i = 1; i < splinePoints.Count; i++)
+        {
+            if (Vector3.Distance(splinePoints[i], filteredPoints[^1]) >= settings.minDistance)
+            {
+                filteredPoints.Add(splinePoints[i]);
+            }
+        }
+        splinePoints = filteredPoints;
+
+        int splineCount = splinePoints.Count;
+
+        Quaternion inverseRotation = Quaternion.Inverse(baseRotation);
+        Vector3 upDir = baseRotation * Vector3.up;
+
+        // figure out the bounding box
+        float minX = float.MaxValue, maxX = float.MinValue;
+        float minZ = float.MaxValue, maxZ = float.MinValue;
+        float lowestY = float.MaxValue, highestY = float.MinValue;
+        List<Vector3> localPoints = new();
+        List<Vector2> bottomPoints2D = new();
+
+        for (int i = 0; i < splineCount; i++)
+        {
+            Vector3 localPt = inverseRotation * splinePoints[i];
+            localPoints.Add(localPt);
+            if (localPt.y < lowestY) lowestY = localPt.y;
+            if (localPt.y > highestY) highestY = localPt.y;
+            if (localPt.x < minX) minX = localPt.x;
+            if (localPt.x > maxX) maxX = localPt.x;
+            if (localPt.z < minZ) minZ = localPt.z;
+            if (localPt.z > maxZ) maxZ = localPt.z;
+        }
+
+        float midY = _bUpperJaw ? (lowestY - settings.skirtDepth) : (highestY + settings.skirtDepth); // ceil of the ABO block
+        float topY = _bUpperJaw ? (midY - settings.baseHeight) : (midY + settings.baseHeight); // abs flat physical bottom of the ABO block
+
+        Vector3[] vertices = new Vector3[(splineCount * 2) + 16]; // skirt points and 7*2 + pair for the heptagon pedestal
+        for (int i = 0; i < splineCount; i++)
+        {
+            vertices[i] = splinePoints[i];
+
+            Vector3 prev = localPoints[(i - 1 + splineCount) % splineCount];
+            Vector3 next = localPoints[(i + 1) % splineCount];
+            Vector3 tangent = (next - prev).normalized;
+            Vector3 outwardNormal = new Vector3(tangent.z, 0, -tangent.x).normalized;
+
+            Vector3 localBottom = new(
+                localPoints[i].x + (outwardNormal.x * settings.outwardFlare),
+                midY,
+                localPoints[i].z + (outwardNormal.z * settings.outwardFlare)
+            );
+
+            bottomPoints2D.Add(new Vector2(localBottom.x, localBottom.z));
+            vertices[i + splineCount] = baseRotation * localBottom;
+        }
+
+        // seal the skirt with the Triangulator
+        Triangulator triangulator = new(bottomPoints2D);
+        int[] capIndices = triangulator.Triangulate();
+        int capTriCount = capIndices.Length;
+
+        // build the ABO pedestal
+        minX -= settings.widePadding; maxX += settings.widePadding;
+        minZ -= settings.widePadding; maxZ += settings.widePadding;
+
+        float centerX = (minX + maxX) / 2f;
+        float heelCut = (maxX - minX) * 0.15f;
+        float canineZ = maxZ - (maxZ - minZ) * 0.35f;
+
+        Vector2[] aboHeptagon = new Vector2[7];
+        aboHeptagon[0] = new Vector2(centerX, maxZ);
+        aboHeptagon[1] = new Vector2(maxX, canineZ);
+        aboHeptagon[2] = new Vector2(maxX, minZ + heelCut);
+        aboHeptagon[3] = new Vector2(maxX - heelCut, minZ);
+        aboHeptagon[4] = new Vector2(minX + heelCut, minZ);
+        aboHeptagon[5] = new Vector2(minX, minZ + heelCut);
+        aboHeptagon[6] = new Vector2(minX, canineZ);
+
+        int pedStart = splineCount * 2;
+
+        for (int i = 0; i < 7; i++) vertices[pedStart + i] = baseRotation * new Vector3(aboHeptagon[i].x, midY, aboHeptagon[i].y); // ceiling ring
+        for (int i = 0; i < 7; i++) vertices[pedStart + 7 + i] = baseRotation * new Vector3(aboHeptagon[i].x, topY, aboHeptagon[i].y); // floor ring
+
+        // center points (to seal the heptagon block)
+        int pedTopCenter = pedStart + 14;
+        int pedBotCenter = pedStart + 15;
+        vertices[pedTopCenter] = baseRotation * new Vector3(centerX, midY, (minZ + maxZ) / 2f);
+        vertices[pedBotCenter] = baseRotation * new Vector3(centerX, topY, (minZ + maxZ) / 2f);
+
+        // stich everything together
+        int[] triangles = new int[(splineCount * 6) + capTriCount + 42 + 21 + 21];
+        int t = 0;
+
+        bool skirtReverseWinding = RequiresReversedWinding(splinePoints, upDir); // skirt winding is user-dependent (clockwise vs. counter-clockwise -drawn spline)
+        if (_bUpperJaw) skirtReverseWinding = !skirtReverseWinding;
+
+        // stitch the skirt walls
+        for (int i = 0; i < splineCount; i++)
+        {
+            int top1 = i, top2 = (i + 1) % splineCount;
+            int bot1 = i + splineCount, bot2 = top2 + splineCount;
+
+            if (skirtReverseWinding)
+            {
+                triangles[t++] = top1;
+                triangles[t++] = bot1;
+                triangles[t++] = top2;
+                
+                triangles[t++] = top2;
+                triangles[t++] = bot1;
+                triangles[t++] = bot2;
+            }
+            else
+            {
+                triangles[t++] = top1;
+                triangles[t++] = top2;
+                triangles[t++] = bot1;
+                
+                triangles[t++] = top2;
+                triangles[t++] = bot2;
+                triangles[t++] = bot1;
+            }
+        }
+
+        // stitch the skirt bottom cap (between the ABO pedestal and teeth)
+        for (int i = 0; i < capTriCount; i += 3)
+        {
+            if (skirtReverseWinding) { triangles[t++] = capIndices[i] + splineCount; triangles[t++] = capIndices[i + 1] + splineCount; triangles[t++] = capIndices[i + 2] + splineCount; }
+            else { triangles[t++] = capIndices[i + 2] + splineCount; triangles[t++] = capIndices[i + 1] + splineCount; triangles[t++] = capIndices[i] + splineCount; }
+        }
+
+        // stitch the pedestal walls (always clockwise, since auto-generated)
+        for (int i = 0; i < 7; i++)
+        {
+            int pTop1 = pedStart + i, pTop2 = pedStart + ((i + 1) % 7);
+            int pBot1 = pTop1 + 7, pBot2 = pTop2 + 7;
+
+            triangles[t++] = pTop1; triangles[t++] = pBot1; triangles[t++] = pTop2;
+            triangles[t++] = pTop2; triangles[t++] = pBot1; triangles[t++] = pBot2;
+        }
+
+        // stitch the pedestal top cap (facing up, catching the skirt)
+        for (int i = 0; i < 7; i++)
+        {
+            int pTop1 = pedStart + i, pTop2 = pedStart + ((i + 1) % 7);
+            triangles[t++] = pedTopCenter; triangles[t++] = pTop1; triangles[t++] = pTop2;
+        }
+
+        // stitch the pedestal bottom cap (facing down, looking at the floor)
+        for (int i = 0; i < 7; i++)
+        {
+            int pBot1 = pedStart + 7 + i, pBot2 = pedStart + 7 + ((i + 1) % 7);
+            triangles[t++] = pedBotCenter; triangles[t++] = pBot2; triangles[t++] = pBot1;
+        }
+
+        return (vertices, triangles);
     }
 
     public void AddPoint(Vector3 worldPosition, Vector3 normal, Transform scanTransform)
@@ -123,5 +828,49 @@ public class BaseBuilder : MonoBehaviour
                 renderer.sharedMaterial = material;
             }
         }
+    }
+
+    private Quaternion CalculateRotation()
+    {
+        if (_occlusalPoints.Count < 3 || _sagittalPoints.Count < 2)
+        {
+            Debug.LogWarning("Cannot calculate rotation, not enough points!");
+            return Quaternion.identity;
+        }
+
+        Vector3 occlusalMolarRight = _occlusalPoints[(int)OcclusalPoint.MolarRight];
+        Vector3 occlusalIncisorMiddle = _occlusalPoints[(int)OcclusalPoint.IncisorMiddle];
+        Vector3 occlusalMolarLeft = _occlusalPoints[(int)OcclusalPoint.MolarLeft];
+
+        Vector3 sagittalFront = _sagittalPoints[(int)SagittalPoint.Front];
+        Vector3 sagittalBack = _sagittalPoints[(int)SagittalPoint.Back];
+
+        // get the top (up) axis
+        Vector3 v1 = occlusalIncisorMiddle - occlusalMolarRight;
+        Vector3 v2 = occlusalMolarLeft - occlusalMolarRight;
+        Vector3 upAxis = Vector3.Cross(v1, v2).normalized;
+
+        // get the forward (front) axis, so that it points away from the mouth
+        Vector3 sagittalDir = sagittalFront - sagittalBack;
+        Vector3 forwardAxis = Vector3.ProjectOnPlane(sagittalDir, upAxis).normalized;
+
+        return Quaternion.LookRotation(forwardAxis, upAxis);
+    }
+
+    private bool RequiresReversedWinding(List<Vector3> points, Vector3 upDir)
+    {
+        Vector3 normal = Vector3.zero;
+
+        for (int i = 0; i < points.Count; i++)
+        {
+            Vector3 current = points[i];
+            Vector3 next = points[(i + 1) % points.Count];
+
+            normal.x += (current.y - next.y) * (current.z + next.z);
+            normal.y += (current.z - next.z) * (current.x + next.x);
+            normal.z += (current.x - next.x) * (current.y + next.y);
+        }
+
+        return Vector3.Dot(normal, upDir) < 0;
     }
 }

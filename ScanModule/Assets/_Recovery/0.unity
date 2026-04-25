@@ -20207,7 +20207,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Config
   scanScale: 0.01
-  scanRotation: {x: 0, y: 0, z: 0, w: 1}
+  scanRotation: {x: -0.86602545, y: 0, z: 0, w: 0.49999997}
   holdThreshold: 0.35
   raycastMaxDistance: 3
   scanRaycastLayer:
@@ -20226,10 +20226,8 @@ MonoBehaviour:
   splineCurveResolution: 16
   splineRadialResolution: 8
   closeLoopSnappingThresholdMult: 0.9
-  cutRadius: 0.0075
-  skirtDepth: 0.01
-  baseHeight: 0.075
-  widePadding: 0.025
+  skirtDepth: 0.035
+  ABOPrefab: {fileID: 711394186015737382, guid: 399c48128998d914a90cfde80bfffa99, type: 3}
 --- !u!114 &2129132400
 MonoBehaviour:
   m_ObjectHideFlags: 0

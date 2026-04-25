@@ -8,7 +8,7 @@ public class Config : MonoBehaviour
     [Tooltip("Default scale factor for the scans (in meters).")]
     public float scanScale = 0.010f;
     [Tooltip("Initial rotation (to have teeth in line with the view, as if looking at a patient)")]
-    public Quaternion scanRotation = Quaternion.Euler(-120f, 0f, 0f);
+    public Quaternion scanRotation = Quaternion.Euler(0f, 0f, 0f);
 
     [Header("Interaction Settings")]
     [Tooltip("Time in seconds to hold before triggering a hold action.")]
@@ -45,6 +45,20 @@ public class Config : MonoBehaviour
     public int splineRadialResolution = 8;
     [Tooltip("The multiplier for the mark radius that is the threshold for snapping the last point to the first point to create a closed loop.")]
     public float closeLoopSnappingThresholdMult = 0.9f;
+
+    [Header("Base meshing")]
+    [Tooltip("How far away from the tube the triangles still get cut (in meters).")]
+    public float cutRadius = 0.0075f;
+    [Tooltip("How far the skirt (between the n-gon and the teeth) of the base drops (in meters).")]
+    public float skirtDepth = 0.01f;
+    [Tooltip("How tall the straight n-gon walls are (in meters).")]
+    public float baseHeight = 0.075f;
+    [Tooltip("How much wider the base n-gon is than the teeth (in meters).")]
+    public float widePadding = 0.025f;
+    [Tooltip("How much to flare out the skirt, so it droops nicely (in meters).")]
+    public float outwardFlare = 0.002f; 
+    [Tooltip("Minimum distance between spline points to count them (in meters).")]
+    public float minDistance = 0.003f;
 
     private void Awake()
     {
