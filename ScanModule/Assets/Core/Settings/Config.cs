@@ -47,6 +47,8 @@ public class Config : MonoBehaviour
     public float closeLoopSnappingThresholdMult = 0.9f;
 
     [Header("Base meshing")]
+    [Tooltip("Material for the ABO bases.")]
+    public Material baseMaterial;
     [Tooltip("How far away from the tube the triangles still get cut (in meters).")]
     public float cutRadius = 0.0075f;
     [Tooltip("How far the skirt (between the n-gon and the teeth) of the base drops (in meters).")]
@@ -54,9 +56,9 @@ public class Config : MonoBehaviour
     [Tooltip("How tall the straight n-gon walls are (in meters).")]
     public float baseHeight = 0.075f;
     [Tooltip("How much wider the base n-gon is than the teeth (in meters).")]
-    public float widePadding = 0.025f;
+    public float widePadding = 0.025f; // !!!
     [Tooltip("How much to flare out the skirt, so it droops nicely (in meters).")]
-    public float outwardFlare = 0.002f; 
+    public float outwardFlare = 0.002f; // !
     [Tooltip("Minimum distance between spline points to count them (in meters).")]
     public float minDistance = 0.003f;
 

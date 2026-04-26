@@ -7,9 +7,12 @@ using UnityEngine.InputSystem;
 
 public class BaseBuilder : MonoBehaviour
 {
+    [Tooltip("The final location where upper and lower bases will be moved.")]
+    public Transform finalAssemblyLocation;
+
     public static BaseBuilder Instance { get; private set; }
 
-    public enum BuilderState { MarkOcclusal, MarkSagittal, MarkGums, Meshing }
+    public enum BuilderState { MarkOcclusal, MarkSagittal, MarkUpperGums, MeshingUpper, MarkLowerGums, MeshingLower, Finished }
     public BuilderState currentState = BuilderState.MarkOcclusal;
 
     public enum OcclusalPoint { MolarRight = 0, IncisorMiddle = 1, MolarLeft = 2 };
@@ -21,7 +24,13 @@ public class BaseBuilder : MonoBehaviour
     private readonly List<GameObject> _occlusalMarks = new();
     private readonly List<GameObject> _sagittalMarks = new();
 
-    private readonly bool _bUpperJaw = true;
+    private bool _bUpperJaw = true;
+
+    private Quaternion _baseRotation;
+
+    private float _masterScaleFactor = 1f;
+    private float _masterCenterX = 0f;
+    private float _masterMinZ = 0f;
 
     private struct PlinthSettings
     {
@@ -71,41 +80,98 @@ public class BaseBuilder : MonoBehaviour
         }
         else if (currentState == BuilderState.MarkSagittal)
         {
-            currentState = BuilderState.MarkGums;
+            currentState = BuilderState.MarkUpperGums;
             Debug.Log("State Advanced: Now marking Gum Splines. TubeRenderer active!");
         }
-        else if (currentState == BuilderState.MarkGums)
+        else if (currentState == BuilderState.MarkUpperGums)
         {
-            currentState = BuilderState.Meshing;
-            Debug.Log("State Advanced: Now triggering ABO Base generation!");
-
-            ScanSpline activeSpline = FindFirstObjectByType<ScanSpline>(); // TODO: modular
-
-            if (activeSpline != null && activeSpline.bClosed)
+            ScanSpline upperSpline = null;
+            ScanSpline[] activeSplines = FindObjectsByType<ScanSpline>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            foreach (var spline in activeSplines)
             {
-                MeshFilter scanMeshFilter = activeSpline.transform.parent.GetComponentInParent<MeshFilter>();
-
-                if (scanMeshFilter != null)
+                if (spline.bClosed)
                 {
-                    Debug.Log($"Trimming scan debris on mesh: {scanMeshFilter.gameObject.name}...");
-                    await TrimScanAsync(scanMeshFilter, activeSpline);
-
-                    Debug.Log("Zipping the gap between the scan and the spline...");
-                    await ZipScanToSkirtAsync(scanMeshFilter, activeSpline);
-
-                    Debug.Log("Trimming & Zipping complete! Building the ABO Base...");
+                    upperSpline = spline;
+                    break;
                 }
-                else
+            }
+
+            if (upperSpline == null)
+            {
+                Debug.Log("Missing a closed spline! Close the spline before advancing!");
+                return;
+            }
+
+            currentState = BuilderState.MeshingUpper;
+            Debug.Log("State Advanced: Now processing the Upper Base...");
+
+            _baseRotation = CalculateRotation();
+            Debug.Log($"Euler base rotation calculated at: {_baseRotation.eulerAngles}");
+
+            await TrimmingAndBasePipelineAsync(upperSpline);
+            upperSpline.gameObject.SetActive(false);
+
+            _bUpperJaw = false;
+            
+            currentState = BuilderState.MarkLowerGums;
+            Debug.Log("Success! Upper Base Complete! Moving onto the Lower Gum Splines.");
+        }
+        else if (currentState == BuilderState.MarkLowerGums)
+        {
+            ScanSpline lowerSpline = null;
+            ScanSpline[] activeSplines = FindObjectsByType<ScanSpline>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            foreach (var spline in activeSplines)
+            {
+                if (spline.bClosed)
                 {
-                    Debug.LogWarning("Could not find MeshFilter to trim. Skipping trim step.");
+                    lowerSpline = spline;
+                    break;
                 }
+            }
 
-                await BaseGenerationPipelineAsync(activeSpline);
+            if (lowerSpline == null)
+            {
+                Debug.Log("Missing a closed spline! Close the spline before advancing!");
+                return;
+            }
+
+            currentState = BuilderState.MeshingLower;
+            Debug.Log("State Advanced: Now processing the Lower Base...");
+
+            await TrimmingAndBasePipelineAsync(lowerSpline);
+            lowerSpline.gameObject.SetActive(false);
+
+            currentState = BuilderState.Finished;
+            Debug.Log("Success! Lower Base Complete! ABO Base Finished!");
+        }
+    }
+
+    private async Task TrimmingAndBasePipelineAsync(ScanSpline activeSpline)
+    {
+        if (activeSpline != null)
+        {
+            MeshFilter scanMeshFilter = activeSpline.transform.parent.GetComponentInParent<MeshFilter>();
+
+            if (scanMeshFilter != null)
+            {
+                Debug.Log($"Trimming scan debris on mesh: {scanMeshFilter.gameObject.name}...");
+                await TrimScanAsync(scanMeshFilter, activeSpline);
+
+                Debug.Log("Zipping the gap between the scan and the spline...");
+                await ZipScanToSkirtAsync(scanMeshFilter, activeSpline);
+
+                Debug.Log("Trimming & Zipping complete! Building the ABO Base...");
             }
             else
             {
-                Debug.LogError("Cannot generate base: Gum spline is not closed, or missing.");
+                Debug.LogWarning("Could not find MeshFilter to trim. Skipping trim step.");
             }
+
+            await BaseGenerationPipelineAsync(activeSpline);
+        }
+        else
+        {
+            Debug.LogError("Cannot generate base: Gum spline is missing.");
         }
     }
 
@@ -155,7 +221,7 @@ public class BaseBuilder : MonoBehaviour
         filter.sharedMesh = zipperMesh;
 
         MeshRenderer renderer = zipperObj.AddComponent<MeshRenderer>();
-        renderer.sharedMaterial = Config.Instance.markCompleteMat;
+        renderer.sharedMaterial = Config.Instance.baseMaterial;
     }
 
     private (Vector3[], int[]) ProcessZipper(Vector3[] scanVerts, int[] scanTris, List<Vector3> localSkirtPoints)
@@ -257,18 +323,10 @@ public class BaseBuilder : MonoBehaviour
 
             }
 
-            if (_bUpperJaw)
-            { 
-                zipperTris.Add(v1);
-                zipperTris.Add(v3);
-                zipperTris.Add(v2);
-            }
-            else
-            {
-                zipperTris.Add(v1);
-                zipperTris.Add(v2);
-                zipperTris.Add(v3);
-            }
+            // the winding order will always be correct
+            zipperTris.Add(v1);
+            zipperTris.Add(v3);
+            zipperTris.Add(v2);
         }
 
         return zipperTris;
@@ -351,9 +409,6 @@ public class BaseBuilder : MonoBehaviour
 
     private async Task BaseGenerationPipelineAsync(ScanSpline spline)
     {
-        Debug.Log("Calculating ABO Space...");
-        Quaternion baseRotation = CalculateRotation();
-
         Debug.Log("Extracting spline points.");
         List<Vector3> splinePoints = spline.GetSplinePoints();
 
@@ -370,42 +425,45 @@ public class BaseBuilder : MonoBehaviour
 
         var (vertices, triangles) = await Task.Run(() =>
         {
-            return ProcessPlinthBaseMath(splinePoints, baseRotation, settings);
+            return ProcessPlinthBaseMath(splinePoints, _baseRotation, settings);
         });
 
-        BuildFinalBaseObject(vertices, triangles, spline, baseRotation);
+        BuildFinalBaseObject(vertices, triangles, spline);
     }
 
-    private void BuildFinalBaseObject(Vector3[] vertices, int[] triangles, ScanSpline spline, Quaternion baseRotation)
+    private void BuildFinalBaseObject(Vector3[] vertices, int[] triangles, ScanSpline spline)
     {
         Mesh finalBaseMesh = new()
         {
-            name = "ABO_Plinth_Base",
+            name = _bUpperJaw ? "ABO_Upper_Base" : "ABO_Lower_Base",
             vertices = vertices,
             triangles = triangles
         };
-        finalBaseMesh.RecalculateBounds();
-        finalBaseMesh.RecalculateNormals();
+        MakeMeshFlatShaded(finalBaseMesh);
 
-        GameObject orthoBase = new("Ortho_Base_Final");
+        GameObject orthoBase = new(_bUpperJaw ? "Ortho_Upper_Final" : "Ortho_Lower_Final");
         orthoBase.transform.SetPositionAndRotation(spline.transform.position, spline.transform.rotation);
-        orthoBase.transform.SetParent(spline.transform, true);
+        orthoBase.transform.SetParent(spline.transform.parent, true);
         orthoBase.transform.localScale = Vector3.one;
 
         MeshFilter filter = orthoBase.AddComponent<MeshFilter>();
         filter.sharedMesh = finalBaseMesh;
 
         MeshRenderer renderer = orthoBase.AddComponent<MeshRenderer>();
-        renderer.sharedMaterial = Config.Instance.markCompleteMat;
+        renderer.sharedMaterial = Config.Instance.baseMaterial;
 
-        // rotate the base top to be perpendicular to Unity's scene floor
-        Vector3 perpendicularRotation = new(
-            baseRotation.eulerAngles.x,
-            baseRotation.eulerAngles.y * (-1) + 180f,
-            baseRotation.eulerAngles.z * (-1) + 180f
-        );
+        Quaternion leveledRotation = Quaternion.Inverse(_baseRotation);
+        Quaternion flippedRotation = Quaternion.Euler(180f, 0f, 0f) * leveledRotation;
+        spline.transform.parent.transform.rotation = flippedRotation;
 
-        spline.transform.parent.transform.eulerAngles = perpendicularRotation;
+        if (finalAssemblyLocation != null)
+        {
+            spline.transform.parent.position = finalAssemblyLocation.position;
+        }
+        else
+        {
+            spline.transform.parent.position = Vector3.one;
+        }
     }
 
     public async Task TrimScanAsync(MeshFilter scanMeshFilter, ScanSpline cutSpline)
@@ -631,10 +689,14 @@ public class BaseBuilder : MonoBehaviour
             if (localPt.z > maxZ) maxZ = localPt.z;
         }
 
-        float midY = _bUpperJaw ? (lowestY - settings.skirtDepth) : (highestY + settings.skirtDepth); // ceil of the ABO block
-        float topY = _bUpperJaw ? (midY - settings.baseHeight) : (midY + settings.baseHeight); // abs flat physical bottom of the ABO block
+        float midY = settings.isUpperJaw ? (lowestY - settings.skirtDepth) : (highestY + settings.skirtDepth);
+        float topY = settings.isUpperJaw ? (midY - settings.baseHeight) : (midY + settings.baseHeight);
 
-        Vector3[] vertices = new Vector3[(splineCount * 2) + 16]; // skirt points and 7*2 + pair for the heptagon pedestal
+        int pedSides = settings.isUpperJaw ? 7 : 8;
+        int pedVerts = (pedSides * 2) + 2; // top/bottom ring + center point
+
+        Vector3[] vertices = new Vector3[(splineCount * 2) + pedVerts];
+
         for (int i = 0; i < splineCount; i++)
         {
             vertices[i] = splinePoints[i];
@@ -659,40 +721,91 @@ public class BaseBuilder : MonoBehaviour
         int[] capIndices = triangulator.Triangulate();
         int capTriCount = capIndices.Length;
 
-        // build the ABO pedestal
-        minX -= settings.widePadding; maxX += settings.widePadding;
-        minZ -= settings.widePadding; maxZ += settings.widePadding;
+        // apply padding to the ABO pedestal
+        minX -= settings.widePadding;
+        maxX += settings.widePadding;
 
-        float centerX = (minX + maxX) / 2f;
-        float heelCut = (maxX - minX) * 0.15f;
-        float canineZ = maxZ - (maxZ - minZ) * 0.35f;
+        minZ -= settings.widePadding;
+        maxZ += settings.widePadding;
 
-        Vector2[] aboHeptagon = new Vector2[7];
-        aboHeptagon[0] = new Vector2(centerX, maxZ);
-        aboHeptagon[1] = new Vector2(maxX, canineZ);
-        aboHeptagon[2] = new Vector2(maxX, minZ + heelCut);
-        aboHeptagon[3] = new Vector2(maxX - heelCut, minZ);
-        aboHeptagon[4] = new Vector2(minX + heelCut, minZ);
-        aboHeptagon[5] = new Vector2(minX, minZ + heelCut);
-        aboHeptagon[6] = new Vector2(minX, canineZ);
+        float W = maxX - minX;
+        float D = maxZ - minZ;
+        float currentCenterX = (minX + maxX) / 2f;
+
+        Vector2[] aboPolygon = new Vector2[pedSides];
+        BaseShapeGenerator shapeGen = new();
+
+        float activeScaleFactor;
+        float activeCenterX;
+        float activeMinZ;
+
+        if (settings.isUpperJaw)
+        {
+            var (verts, _) = shapeGen.CalculateUpperBaseShape();
+
+            float shapeWidth = verts[1].x - verts[7].x; // C.x - CC.x
+            float shapeDepth = verts[6].z - verts[0].z; // T.z - B.z
+
+            activeScaleFactor = Mathf.Max(W / shapeWidth, D / shapeDepth);
+            activeCenterX = currentCenterX;
+            activeMinZ = minZ; // anchor to the back heel
+
+            _masterScaleFactor = activeScaleFactor;
+            _masterCenterX = activeCenterX;
+            _masterMinZ = activeMinZ;
+
+            // grow the template forward from the back heel (Z = activeMinZ)
+            aboPolygon[0] = new Vector2(activeCenterX + verts[6].x * activeScaleFactor, activeMinZ + verts[6].z * activeScaleFactor); // T
+            aboPolygon[1] = new Vector2(activeCenterX + verts[5].x * activeScaleFactor, activeMinZ + verts[5].z * activeScaleFactor); // U
+            aboPolygon[2] = new Vector2(activeCenterX + verts[2].x * activeScaleFactor, activeMinZ + verts[2].z * activeScaleFactor); // E
+            aboPolygon[3] = new Vector2(activeCenterX + verts[1].x * activeScaleFactor, activeMinZ + verts[1].z * activeScaleFactor); // C
+            aboPolygon[4] = new Vector2(activeCenterX + verts[7].x * activeScaleFactor, activeMinZ + verts[7].z * activeScaleFactor); // CC
+            aboPolygon[5] = new Vector2(activeCenterX + verts[8].x * activeScaleFactor, activeMinZ + verts[8].z * activeScaleFactor); // EE
+            aboPolygon[6] = new Vector2(activeCenterX + verts[9].x * activeScaleFactor, activeMinZ + verts[9].z * activeScaleFactor); // UU
+        }
+        else
+        {
+            var (verts, _) = shapeGen.CalculateLowerBaseShape();
+
+            activeScaleFactor = _masterScaleFactor;
+            activeCenterX = _masterCenterX;
+            activeMinZ = _masterMinZ;
+
+            // map the perimeter clockwise using the Upper Jaw's scale and heel placement
+            aboPolygon[0] = new Vector2(activeCenterX + verts[7].x * activeScaleFactor, activeMinZ + verts[7].z * activeScaleFactor);  // A
+            aboPolygon[1] = new Vector2(activeCenterX + verts[5].x * activeScaleFactor, activeMinZ + verts[5].z * activeScaleFactor);  // U
+            aboPolygon[2] = new Vector2(activeCenterX + verts[2].x * activeScaleFactor, activeMinZ + verts[2].z * activeScaleFactor);  // E
+            aboPolygon[3] = new Vector2(activeCenterX + verts[1].x * activeScaleFactor, activeMinZ + verts[1].z * activeScaleFactor);  // C
+            aboPolygon[4] = new Vector2(activeCenterX + verts[8].x * activeScaleFactor, activeMinZ + verts[8].z * activeScaleFactor);  // CC
+            aboPolygon[5] = new Vector2(activeCenterX + verts[9].x * activeScaleFactor, activeMinZ + verts[9].z * activeScaleFactor);  // EE
+            aboPolygon[6] = new Vector2(activeCenterX + verts[10].x * activeScaleFactor, activeMinZ + verts[10].z * activeScaleFactor); // UU
+            aboPolygon[7] = new Vector2(activeCenterX + verts[11].x * activeScaleFactor, activeMinZ + verts[11].z * activeScaleFactor); // AA
+        }
+
+        float polyMinZ = float.MaxValue, polyMaxZ = float.MinValue;
+        foreach (var p in aboPolygon)
+        {
+            if (p.y < polyMinZ) polyMinZ = p.y;
+            if (p.y > polyMaxZ) polyMaxZ = p.y;
+        }
+        float finalCenterZ = (polyMinZ + polyMaxZ) / 2f;
 
         int pedStart = splineCount * 2;
 
-        for (int i = 0; i < 7; i++) vertices[pedStart + i] = baseRotation * new Vector3(aboHeptagon[i].x, midY, aboHeptagon[i].y); // ceiling ring
-        for (int i = 0; i < 7; i++) vertices[pedStart + 7 + i] = baseRotation * new Vector3(aboHeptagon[i].x, topY, aboHeptagon[i].y); // floor ring
+        for (int i = 0; i < pedSides; i++) vertices[pedStart + i] = baseRotation * new Vector3(aboPolygon[i].x, midY, aboPolygon[i].y);
+        for (int i = 0; i < pedSides; i++) vertices[pedStart + pedSides + i] = baseRotation * new Vector3(aboPolygon[i].x, topY, aboPolygon[i].y);
 
-        // center points (to seal the heptagon block)
-        int pedTopCenter = pedStart + 14;
-        int pedBotCenter = pedStart + 15;
-        vertices[pedTopCenter] = baseRotation * new Vector3(centerX, midY, (minZ + maxZ) / 2f);
-        vertices[pedBotCenter] = baseRotation * new Vector3(centerX, topY, (minZ + maxZ) / 2f);
+        int pedTopCenter = pedStart + (pedSides * 2);
+        int pedBotCenter = pedStart + (pedSides * 2) + 1;
+        vertices[pedTopCenter] = baseRotation * new Vector3(activeCenterX, midY, finalCenterZ);
+        vertices[pedBotCenter] = baseRotation * new Vector3(activeCenterX, topY, finalCenterZ);
 
         // stich everything together
-        int[] triangles = new int[(splineCount * 6) + capTriCount + 42 + 21 + 21];
+        int[] triangles = new int[(splineCount * 6) + capTriCount + (pedSides * 12)];
         int t = 0;
 
-        bool skirtReverseWinding = RequiresReversedWinding(splinePoints, upDir); // skirt winding is user-dependent (clockwise vs. counter-clockwise -drawn spline)
-        if (_bUpperJaw) skirtReverseWinding = !skirtReverseWinding;
+        bool skirtReverseWinding = RequiresReversedWinding(splinePoints, upDir);
+        if (settings.isUpperJaw) skirtReverseWinding = !skirtReverseWinding;
 
         // stitch the skirt walls
         for (int i = 0; i < splineCount; i++)
@@ -705,7 +818,7 @@ public class BaseBuilder : MonoBehaviour
                 triangles[t++] = top1;
                 triangles[t++] = bot1;
                 triangles[t++] = top2;
-                
+
                 triangles[t++] = top2;
                 triangles[t++] = bot1;
                 triangles[t++] = bot2;
@@ -715,45 +828,102 @@ public class BaseBuilder : MonoBehaviour
                 triangles[t++] = top1;
                 triangles[t++] = top2;
                 triangles[t++] = bot1;
-                
+
                 triangles[t++] = top2;
                 triangles[t++] = bot2;
                 triangles[t++] = bot1;
             }
         }
 
-        // stitch the skirt bottom cap (between the ABO pedestal and teeth)
+        // stitch the skirt bottom cap
         for (int i = 0; i < capTriCount; i += 3)
         {
-            if (skirtReverseWinding) { triangles[t++] = capIndices[i] + splineCount; triangles[t++] = capIndices[i + 1] + splineCount; triangles[t++] = capIndices[i + 2] + splineCount; }
-            else { triangles[t++] = capIndices[i + 2] + splineCount; triangles[t++] = capIndices[i + 1] + splineCount; triangles[t++] = capIndices[i] + splineCount; }
+            if (skirtReverseWinding)
+            {
+                triangles[t++] = capIndices[i] + splineCount;
+                triangles[t++] = capIndices[i + 1] + splineCount;
+                triangles[t++] = capIndices[i + 2] + splineCount;
+            }
+            else
+            {
+                triangles[t++] = capIndices[i + 2] + splineCount;
+                triangles[t++] = capIndices[i + 1] + splineCount;
+                triangles[t++] = capIndices[i] + splineCount;
+            }
         }
 
-        // stitch the pedestal walls (always clockwise, since auto-generated)
-        for (int i = 0; i < 7; i++)
+        // stitch the pedestal walls
+        for (int i = 0; i < pedSides; i++)
         {
-            int pTop1 = pedStart + i, pTop2 = pedStart + ((i + 1) % 7);
-            int pBot1 = pTop1 + 7, pBot2 = pTop2 + 7;
+            int pTop1 = pedStart + i, pTop2 = pedStart + ((i + 1) % pedSides);
+            int pBot1 = pTop1 + pedSides, pBot2 = pTop2 + pedSides;
 
-            triangles[t++] = pTop1; triangles[t++] = pBot1; triangles[t++] = pTop2;
-            triangles[t++] = pTop2; triangles[t++] = pBot1; triangles[t++] = pBot2;
+            if (settings.isUpperJaw)
+            {
+                triangles[t++] = pTop1; triangles[t++] = pBot1; triangles[t++] = pTop2;
+                triangles[t++] = pTop2; triangles[t++] = pBot1; triangles[t++] = pBot2;
+            }
+            else
+            {
+                triangles[t++] = pTop1; triangles[t++] = pTop2; triangles[t++] = pBot1;
+                triangles[t++] = pTop2; triangles[t++] = pBot2; triangles[t++] = pBot1;
+            }
         }
 
-        // stitch the pedestal top cap (facing up, catching the skirt)
-        for (int i = 0; i < 7; i++)
+        // stitch the pedestal top cap 
+        for (int i = 0; i < pedSides; i++)
         {
-            int pTop1 = pedStart + i, pTop2 = pedStart + ((i + 1) % 7);
-            triangles[t++] = pedTopCenter; triangles[t++] = pTop1; triangles[t++] = pTop2;
+            int pTop1 = pedStart + i, pTop2 = pedStart + ((i + 1) % pedSides);
+            triangles[t++] = pedTopCenter;
+
+            if (settings.isUpperJaw)
+            {
+                triangles[t++] = pTop1; triangles[t++] = pTop2;
+            }
+            else
+            {
+                triangles[t++] = pTop2; triangles[t++] = pTop1;
+            }
         }
 
-        // stitch the pedestal bottom cap (facing down, looking at the floor)
-        for (int i = 0; i < 7; i++)
+        // stitch the pedestal bottom cap
+        for (int i = 0; i < pedSides; i++)
         {
-            int pBot1 = pedStart + 7 + i, pBot2 = pedStart + 7 + ((i + 1) % 7);
-            triangles[t++] = pedBotCenter; triangles[t++] = pBot2; triangles[t++] = pBot1;
+            int pBot1 = pedStart + pedSides + i, pBot2 = pedStart + pedSides + ((i + 1) % pedSides);
+            triangles[t++] = pedBotCenter;
+
+            if (settings.isUpperJaw)
+            {
+                triangles[t++] = pBot2; triangles[t++] = pBot1;
+            }
+            else
+            {
+                triangles[t++] = pBot1; triangles[t++] = pBot2;
+            }
         }
 
         return (vertices, triangles);
+    }
+
+    private void MakeMeshFlatShaded(Mesh mesh)
+    {
+        Vector3[] oldVerts = mesh.vertices;
+        int[] oldTris = mesh.triangles;
+
+        Vector3[] newVerts = new Vector3[oldTris.Length];
+        int[] newTris = new int[oldTris.Length];
+
+        for (int i = 0; i < oldTris.Length; i++)
+        {
+            newVerts[i] = oldVerts[oldTris[i]];
+            newTris[i] = i; // every vertex gets a unique index
+        }
+
+        mesh.vertices = newVerts;
+        mesh.triangles = newTris;
+
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
     }
 
     public void AddPoint(Vector3 worldPosition, Vector3 normal, Transform scanTransform)

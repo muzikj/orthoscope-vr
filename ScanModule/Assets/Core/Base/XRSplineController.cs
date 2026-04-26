@@ -16,6 +16,8 @@ public class XRSplineController : MonoBehaviour
 
     private ScanSpline _currentSpline;
 
+    private bool IsMarkingPlanes => BaseBuilder.Instance != null && (BaseBuilder.Instance.currentState == BaseBuilder.BuilderState.MarkOcclusal || BaseBuilder.Instance.currentState == BaseBuilder.BuilderState.MarkSagittal);
+
     private void Awake()
     {
         if (Config.Instance.ghostMarkPrefab != null)
@@ -85,9 +87,9 @@ public class XRSplineController : MonoBehaviour
                     {
                         _ghostMark.SetActive(false);
                         _closingGhostMark.SetActive(true);
-                        
+
                         _closingGhostMark.transform.SetPositionAndRotation(snapPosition, Quaternion.LookRotation(snapNormal));
-                        
+
                         return;
                     }
                     else // standard hovering
@@ -96,7 +98,7 @@ public class XRSplineController : MonoBehaviour
                         _closingGhostMark.SetActive(false);
 
                         _ghostMark.transform.SetPositionAndRotation(potentialPosition, Quaternion.LookRotation(hit.normal));
-                    }                  
+                    }
                 }
                 else
                 {
@@ -120,7 +122,7 @@ public class XRSplineController : MonoBehaviour
         {
             Transform activeGhost = _closingGhostMark.activeSelf ? _closingGhostMark.transform : _ghostMark.transform;
 
-            if (BaseBuilder.Instance != null && BaseBuilder.Instance.currentState != BaseBuilder.BuilderState.MarkGums)
+            if (IsMarkingPlanes)
             {
                 BaseBuilder.Instance.AddPoint(activeGhost.position, activeGhost.forward, _currentSpline.transform);
             }
@@ -133,7 +135,7 @@ public class XRSplineController : MonoBehaviour
 
     private void OnUndoPressed(InputAction.CallbackContext context)
     {
-        if (BaseBuilder.Instance != null && BaseBuilder.Instance.currentState != BaseBuilder.BuilderState.MarkGums)
+        if (IsMarkingPlanes)
         {
             BaseBuilder.Instance.RemoveLastPoint();
         }
