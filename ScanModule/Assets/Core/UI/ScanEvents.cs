@@ -17,15 +17,23 @@ public class ScanEvents // TODO: add sound effects
     public static void NotifyScanSelected(GameObject scan) => OnScanSelected?.Invoke(scan);
     public static void NotifyScanDeselected(GameObject scan) => OnScanDeselected?.Invoke(scan);
     
-    // delete selected scans
+    // deleting selected scans
     public static event Action OnResetRequested;
     public static void RequestResetScan() => OnResetRequested?.Invoke();
 
-    // reset selected scans
+    // resetting selected scans
     public static event Action OnDeleteRequested;
     public static void RequestDeleteScan() => OnDeleteRequested?.Invoke();
 
-    // scale selected scans
+    // scaling selected scans
     public static event Action<float> OnScaleRequested;
     public static void RequestScaleScan(float scaleFactor) => OnScaleRequested?.Invoke(scaleFactor);
+
+    // advancing the base builder
+    public static event Action OnAdvanceBuilderRequested;
+    public static void RequestAdvanceBuilder() => OnAdvanceBuilderRequested?.Invoke();
+
+    // logging messages to the UI banner
+    public static event Action<string> OnUIMessageRequested;
+    public static void RequestUIMessage(string message) => OnUIMessageRequested?.Invoke(message);
 }

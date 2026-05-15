@@ -105,12 +105,14 @@ public class UIManager : MonoBehaviour
     {
         ScanEvents.OnImportScanRequested += HandleImportScanRequested;
         ScanEvents.OnImportScanCompleted += HandleImportScanCompleted;
+        ScanEvents.OnUIMessageRequested += HandleUIMessageRequested;
     }
 
     private void OnDisable()
     {
         ScanEvents.OnImportScanRequested -= HandleImportScanRequested;
         ScanEvents.OnImportScanCompleted -= HandleImportScanCompleted;
+        ScanEvents.OnUIMessageRequested -= HandleUIMessageRequested;
     }
 
     private void HandleImportScanRequested(string path)
@@ -157,6 +159,20 @@ public class UIManager : MonoBehaviour
     public void ClickChangeScale(float scaleFactor)
     {
         ScanEvents.RequestScaleScan(scaleFactor);
+    }
+
+    public void ClickAdvanceBuilder()
+    {
+        ScanEvents.RequestAdvanceBuilder();
+    }
+
+    private void HandleUIMessageRequested(string message)
+    {
+        ChangeText(message);
+        EnableText();
+
+        CancelInvoke(nameof(DisableText));
+        Invoke(nameof(DisableText), 3.5f);
     }
 
     private void OnDestroy()
