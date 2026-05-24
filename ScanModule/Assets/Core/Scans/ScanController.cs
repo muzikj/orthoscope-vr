@@ -21,6 +21,12 @@ public class ScanController : MonoBehaviour
     private bool _triggerHeld = false;
     private bool _triggerHeldForLongEnough = false;
 
+    private bool _isLeader = false;
+    private bool _isFollower = false;
+
+    private Vector3 _offsetPosition;
+    private Quaternion _offsetRotation;
+
     private void Awake()
     {
         _renderer = GetComponent<MeshRenderer>();
@@ -48,7 +54,12 @@ public class ScanController : MonoBehaviour
                 _triggerHeldForLongEnough = true;
                 ToggleOptions();
             }
-        }    
+        }
+
+        if (_isLeader)
+        {
+            ScanEvents.RequestGroupMove(transform);
+        }
     }
 
     private void OnEnable()
@@ -56,9 +67,17 @@ public class ScanController : MonoBehaviour
         _grabInteractable.activated.AddListener(OnTriggerPulled);
         _grabInteractable.deactivated.AddListener(OnTriggeReleased);
 
+        _grabInteractable.selectEntered.AddListener(OnGrabbed);
+        _grabInteractable.selectExited.AddListener(OnReleased);
+
+        ScanEvents.OnGroupGrabStarted += HandleGroupGrabStarted;
+        ScanEvents.OnGroupMoved += HandleGroupMoved;
+        ScanEvents.OnGroupGrabEnded += HandleGroupGrabEnded;
+
         ScanEvents.OnDeleteRequested += HandleDeleteRequested;
         ScanEvents.OnResetRequested += HandleResetRequested;
         ScanEvents.OnScaleRequested += HandleScaleRequested;
+        ScanEvents.OnSnapViewRequested += HandleSnapViewRequested;
     }
 
     private void OnDisable()
@@ -66,9 +85,17 @@ public class ScanController : MonoBehaviour
         _grabInteractable.activated.RemoveListener(OnTriggerPulled);
         _grabInteractable.deactivated.RemoveListener(OnTriggeReleased);
 
+        _grabInteractable.selectEntered.RemoveListener(OnGrabbed);
+        _grabInteractable.selectExited.RemoveListener(OnReleased);
+
+        ScanEvents.OnGroupGrabStarted -= HandleGroupGrabStarted;
+        ScanEvents.OnGroupMoved -= HandleGroupMoved;
+        ScanEvents.OnGroupGrabEnded -= HandleGroupGrabEnded;
+
         ScanEvents.OnDeleteRequested -= HandleDeleteRequested;
         ScanEvents.OnResetRequested -= HandleResetRequested;
         ScanEvents.OnScaleRequested -= HandleScaleRequested;
+        ScanEvents.OnSnapViewRequested -= HandleSnapViewRequested;
 
         ToggleSelection(false);
     }
@@ -152,5 +179,88 @@ public class ScanController : MonoBehaviour
         if (!Selected) return;
 
         transform.localScale = _originalScale * scaleFactor;
+    }
+
+    private void HandleSnapViewRequested(OrthoView view)
+    {
+        if (!Selected) return;
+
+        Quaternion targetRotation = _originalRotation;
+
+        switch (view)
+        {
+            case OrthoView.Front:
+                targetRotation = _originalRotation * Quaternion.identity;
+
+                break;
+
+            case OrthoView.Back:
+                targetRotation = _originalRotation * Quaternion.Euler(0f, 180f, 0f);
+
+                break;
+
+            case OrthoView.Left:
+                targetRotation = _originalRotation * Quaternion.Euler(0f, -90f, 0f);
+
+                break;
+
+            case OrthoView.Right:
+                targetRotation = _originalRotation * Quaternion.Euler(0f, 90f, 0f);
+
+                break;
+
+            case OrthoView.Top:
+                targetRotation = _originalRotation * Quaternion.Euler(90f, 0f, 0f);
+
+                break;
+
+            case OrthoView.Bottom:
+                targetRotation = _originalRotation * Quaternion.Euler(-90f, 0f, 0f);
+
+                break;
+        }
+
+        transform.localRotation = targetRotation;
+    }
+
+    private void OnGrabbed(SelectEnterEventArgs args)
+    {
+        if (!Selected) return;
+
+        _isLeader = true;
+
+        ScanEvents.RequestGroupGrabStart(transform);
+    }
+
+    private void OnReleased(SelectExitEventArgs args)
+    {
+        if (_isLeader)
+        {
+            _isLeader = false;
+
+            ScanEvents.RequestGroupGrabEnd();
+        }
+    }
+
+    private void HandleGroupGrabStarted(Transform leaderTransform)
+    {
+        if (!Selected || _isLeader) return;
+
+        _isFollower = true;
+
+        _offsetPosition = leaderTransform.InverseTransformPoint(transform.position);
+        _offsetRotation = Quaternion.Inverse(leaderTransform.rotation) * transform.rotation;
+    }
+
+    private void HandleGroupMoved(Transform leaderTransform)
+    {
+        if (!_isFollower) return;
+
+        transform.SetPositionAndRotation(leaderTransform.TransformPoint(_offsetPosition), leaderTransform.rotation * _offsetRotation);
+    }
+
+    private void HandleGroupGrabEnded()
+    {
+        _isFollower = false;
     }
 }

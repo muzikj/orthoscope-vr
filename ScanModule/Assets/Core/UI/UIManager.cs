@@ -146,25 +146,20 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void ClickDeleteScan()
-    {
-        ScanEvents.RequestDeleteScan();
-    }
+    public void ClickDeleteScan() => ScanEvents.RequestDeleteScan();
 
-    public void ClickResetScan()
-    {
-        ScanEvents.RequestResetScan();
-    }
+    public void ClickResetScan() => ScanEvents.RequestResetScan();
 
-    public void ClickChangeScale(float scaleFactor)
-    {
-        ScanEvents.RequestScaleScan(scaleFactor);
-    }
+    public void ClickChangeScale(float scaleFactor) => ScanEvents.RequestScaleScan(scaleFactor);
 
-    public void ClickAdvanceBuilder()
-    {
-        ScanEvents.RequestAdvanceBuilder();
-    }
+    public void ClickAdvanceBuilder() => ScanEvents.RequestAdvanceBuilder();
+
+    public void ClickViewFront() => ScanEvents.RequestSnapView(OrthoView.Front);
+    public void ClickViewBack() => ScanEvents.RequestSnapView(OrthoView.Back);
+    public void ClickViewLeft() => ScanEvents.RequestSnapView(OrthoView.Left);
+    public void ClickViewRight() => ScanEvents.RequestSnapView(OrthoView.Right);
+    public void ClickViewTop() => ScanEvents.RequestSnapView(OrthoView.Top);
+    public void ClickViewBottom() => ScanEvents.RequestSnapView(OrthoView.Bottom);
 
     private void HandleUIMessageRequested(string message)
     {
