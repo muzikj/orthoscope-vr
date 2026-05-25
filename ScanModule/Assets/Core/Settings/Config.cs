@@ -52,15 +52,19 @@ public class Config : MonoBehaviour
     [Tooltip("How far away from the tube the triangles still get cut (in meters).")]
     public float cutRadius = 0.0075f;
     [Tooltip("How far the skirt (between the n-gon and the teeth) of the base drops (in meters).")]
-    public float skirtDepth = 0.01f;
+    public float skirtDepth = 0.003f;
     [Tooltip("How tall the straight n-gon walls are (in meters).")]
     public float baseHeight = 0.075f;
     [Tooltip("How much wider the base n-gon is than the teeth (in meters).")]
-    public float widePadding = 0.025f; // !!!
+    public float widePadding = 0.003f;
     [Tooltip("How much to flare out the skirt, so it droops nicely (in meters).")]
-    public float outwardFlare = 0.002f; // !
+    public float outwardFlare = 0.002f;
     [Tooltip("Minimum distance between spline points to count them (in meters).")]
     public float minDistance = 0.003f;
+    [Tooltip("How much we want to flatten the ABO Gum curve.")]
+    public int smoothingPasses = 8;
+    [Tooltip("The blur radius, i.e. how wide a net we cast to average points (a value of X translates to 2X + 1 points).")]
+    public int smoothingWindowSize = 3;
 
     private void Awake()
     {

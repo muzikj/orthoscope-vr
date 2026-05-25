@@ -27,9 +27,10 @@ public class BaseBuilder : MonoBehaviour
 
 	private Quaternion _baseRotation;
 
-	private float _masterScaleFactor = 1f;
-	private float _masterCenterX = 0f;
+	private float _masterMinX = 0f;
+	private float _masterMaxX = 0f;
 	private float _masterMinZ = 0f;
+	private float _masterMaxZ = 0f;
 
 	private bool _bProcessing = false;
 
@@ -457,7 +458,7 @@ public class BaseBuilder : MonoBehaviour
 
 		var (vertices, triangles) = await Task.Run(() =>
 		{
-			return ProcessPlinthBaseMath(splinePoints, _baseRotation, settings);
+			return ProcessProfessionalBaseMath(splinePoints, _baseRotation, settings);
 		});
 
 		BuildFinalBaseObject(vertices, triangles, spline);
@@ -680,263 +681,6 @@ public class BaseBuilder : MonoBehaviour
 		return (finalVerts.ToArray(), finalTris.ToArray(), finalColors.ToArray());
 	}
 
-	private (Vector3[], int[]) ProcessPlinthBaseMath(List<Vector3> splinePoints, Quaternion baseRotation, PlinthSettings settings)
-	{
-		// clean the spline up
-		List<Vector3> filteredPoints = new()
-		{
-			splinePoints[0]
-		};
-
-		for (int i = 1; i < splinePoints.Count; i++)
-		{
-			if (Vector3.Distance(splinePoints[i], filteredPoints[^1]) >= settings.minDistance)
-			{
-				filteredPoints.Add(splinePoints[i]);
-			}
-		}
-		splinePoints = filteredPoints;
-
-		int splineCount = splinePoints.Count;
-
-		Quaternion inverseRotation = Quaternion.Inverse(baseRotation);
-		Vector3 upDir = baseRotation * Vector3.up;
-
-		// figure out the bounding box
-		float minX = float.MaxValue, maxX = float.MinValue;
-		float minZ = float.MaxValue, maxZ = float.MinValue;
-		float lowestY = float.MaxValue, highestY = float.MinValue;
-		List<Vector3> localPoints = new();
-		List<Vector2> bottomPoints2D = new();
-
-		for (int i = 0; i < splineCount; i++)
-		{
-			Vector3 localPt = inverseRotation * splinePoints[i];
-			localPoints.Add(localPt);
-			if (localPt.y < lowestY) lowestY = localPt.y;
-			if (localPt.y > highestY) highestY = localPt.y;
-			if (localPt.x < minX) minX = localPt.x;
-			if (localPt.x > maxX) maxX = localPt.x;
-			if (localPt.z < minZ) minZ = localPt.z;
-			if (localPt.z > maxZ) maxZ = localPt.z;
-		}
-
-		float midY = settings.isUpperJaw ? (lowestY - settings.skirtDepth) : (highestY + settings.skirtDepth);
-		float topY = settings.isUpperJaw ? (midY - settings.baseHeight) : (midY + settings.baseHeight);
-
-		int pedSides = settings.isUpperJaw ? 7 : 8;
-		int pedVerts = (pedSides * 2) + 2; // top/bottom ring + center point
-
-		Vector3[] vertices = new Vector3[(splineCount * 2) + pedVerts];
-
-		for (int i = 0; i < splineCount; i++)
-		{
-			vertices[i] = splinePoints[i];
-
-			Vector3 prev = localPoints[(i - 1 + splineCount) % splineCount];
-			Vector3 next = localPoints[(i + 1) % splineCount];
-			Vector3 tangent = (next - prev).normalized;
-			Vector3 outwardNormal = new Vector3(tangent.z, 0, -tangent.x).normalized;
-
-			Vector3 localBottom = new(
-				localPoints[i].x + (outwardNormal.x * settings.outwardFlare),
-				midY,
-				localPoints[i].z + (outwardNormal.z * settings.outwardFlare)
-			);
-
-			bottomPoints2D.Add(new Vector2(localBottom.x, localBottom.z));
-			vertices[i + splineCount] = baseRotation * localBottom;
-		}
-
-		// seal the skirt with the Triangulator
-		Triangulator triangulator = new(bottomPoints2D);
-		int[] capIndices = triangulator.Triangulate();
-		int capTriCount = capIndices.Length;
-
-		// apply padding to the ABO pedestal
-		minX -= settings.widePadding;
-		maxX += settings.widePadding;
-
-		minZ -= settings.widePadding;
-		maxZ += settings.widePadding;
-
-		float W = maxX - minX;
-		float D = maxZ - minZ;
-		float currentCenterX = (minX + maxX) / 2f;
-
-		Vector2[] aboPolygon = new Vector2[pedSides];
-		BaseShapeGenerator shapeGen = new();
-
-		float activeScaleFactor;
-		float activeCenterX;
-		float activeMinZ;
-
-		if (settings.isUpperJaw)
-		{
-			var (verts, _) = shapeGen.CalculateUpperBaseShape();
-
-			float shapeWidth = verts[1].x - verts[7].x; // C.x - CC.x
-			float shapeDepth = verts[6].z - verts[0].z; // T.z - B.z
-
-			activeScaleFactor = Mathf.Max(W / shapeWidth, D / shapeDepth);
-			activeCenterX = currentCenterX;
-			activeMinZ = minZ; // anchor to the back heel
-
-			_masterScaleFactor = activeScaleFactor;
-			_masterCenterX = activeCenterX;
-			_masterMinZ = activeMinZ;
-
-			// grow the template forward from the back heel (Z = activeMinZ)
-			aboPolygon[0] = new Vector2(activeCenterX + verts[6].x * activeScaleFactor, activeMinZ + verts[6].z * activeScaleFactor); // T
-			aboPolygon[1] = new Vector2(activeCenterX + verts[5].x * activeScaleFactor, activeMinZ + verts[5].z * activeScaleFactor); // U
-			aboPolygon[2] = new Vector2(activeCenterX + verts[2].x * activeScaleFactor, activeMinZ + verts[2].z * activeScaleFactor); // E
-			aboPolygon[3] = new Vector2(activeCenterX + verts[1].x * activeScaleFactor, activeMinZ + verts[1].z * activeScaleFactor); // C
-			aboPolygon[4] = new Vector2(activeCenterX + verts[7].x * activeScaleFactor, activeMinZ + verts[7].z * activeScaleFactor); // CC
-			aboPolygon[5] = new Vector2(activeCenterX + verts[8].x * activeScaleFactor, activeMinZ + verts[8].z * activeScaleFactor); // EE
-			aboPolygon[6] = new Vector2(activeCenterX + verts[9].x * activeScaleFactor, activeMinZ + verts[9].z * activeScaleFactor); // UU
-		}
-		else
-		{
-			var (verts, _) = shapeGen.CalculateLowerBaseShape();
-
-			activeScaleFactor = _masterScaleFactor;
-			activeCenterX = _masterCenterX;
-			activeMinZ = _masterMinZ;
-
-			// map the perimeter clockwise using the Upper Jaw's scale and heel placement
-			aboPolygon[0] = new Vector2(activeCenterX + verts[7].x * activeScaleFactor, activeMinZ + verts[7].z * activeScaleFactor);  // A
-			aboPolygon[1] = new Vector2(activeCenterX + verts[5].x * activeScaleFactor, activeMinZ + verts[5].z * activeScaleFactor);  // U
-			aboPolygon[2] = new Vector2(activeCenterX + verts[2].x * activeScaleFactor, activeMinZ + verts[2].z * activeScaleFactor);  // E
-			aboPolygon[3] = new Vector2(activeCenterX + verts[1].x * activeScaleFactor, activeMinZ + verts[1].z * activeScaleFactor);  // C
-			aboPolygon[4] = new Vector2(activeCenterX + verts[8].x * activeScaleFactor, activeMinZ + verts[8].z * activeScaleFactor);  // CC
-			aboPolygon[5] = new Vector2(activeCenterX + verts[9].x * activeScaleFactor, activeMinZ + verts[9].z * activeScaleFactor);  // EE
-			aboPolygon[6] = new Vector2(activeCenterX + verts[10].x * activeScaleFactor, activeMinZ + verts[10].z * activeScaleFactor); // UU
-			aboPolygon[7] = new Vector2(activeCenterX + verts[11].x * activeScaleFactor, activeMinZ + verts[11].z * activeScaleFactor); // AA
-		}
-
-		float polyMinZ = float.MaxValue, polyMaxZ = float.MinValue;
-		foreach (var p in aboPolygon)
-		{
-			if (p.y < polyMinZ) polyMinZ = p.y;
-			if (p.y > polyMaxZ) polyMaxZ = p.y;
-		}
-		float finalCenterZ = (polyMinZ + polyMaxZ) / 2f;
-
-		int pedStart = splineCount * 2;
-
-		for (int i = 0; i < pedSides; i++) vertices[pedStart + i] = baseRotation * new Vector3(aboPolygon[i].x, midY, aboPolygon[i].y);
-		for (int i = 0; i < pedSides; i++) vertices[pedStart + pedSides + i] = baseRotation * new Vector3(aboPolygon[i].x, topY, aboPolygon[i].y);
-
-		int pedTopCenter = pedStart + (pedSides * 2);
-		int pedBotCenter = pedStart + (pedSides * 2) + 1;
-		vertices[pedTopCenter] = baseRotation * new Vector3(activeCenterX, midY, finalCenterZ);
-		vertices[pedBotCenter] = baseRotation * new Vector3(activeCenterX, topY, finalCenterZ);
-
-		// stich everything together
-		int[] triangles = new int[(splineCount * 6) + capTriCount + (pedSides * 12)];
-		int t = 0;
-
-		bool skirtReverseWinding = RequiresReversedWinding(splinePoints, upDir);
-		if (settings.isUpperJaw) skirtReverseWinding = !skirtReverseWinding;
-
-		// stitch the skirt walls
-		for (int i = 0; i < splineCount; i++)
-		{
-			int top1 = i, top2 = (i + 1) % splineCount;
-			int bot1 = i + splineCount, bot2 = top2 + splineCount;
-
-			if (skirtReverseWinding)
-			{
-				triangles[t++] = top1;
-				triangles[t++] = bot1;
-				triangles[t++] = top2;
-
-				triangles[t++] = top2;
-				triangles[t++] = bot1;
-				triangles[t++] = bot2;
-			}
-			else
-			{
-				triangles[t++] = top1;
-				triangles[t++] = top2;
-				triangles[t++] = bot1;
-
-				triangles[t++] = top2;
-				triangles[t++] = bot2;
-				triangles[t++] = bot1;
-			}
-		}
-
-		// stitch the skirt bottom cap
-		for (int i = 0; i < capTriCount; i += 3)
-		{
-			if (skirtReverseWinding)
-			{
-				triangles[t++] = capIndices[i] + splineCount;
-				triangles[t++] = capIndices[i + 1] + splineCount;
-				triangles[t++] = capIndices[i + 2] + splineCount;
-			}
-			else
-			{
-				triangles[t++] = capIndices[i + 2] + splineCount;
-				triangles[t++] = capIndices[i + 1] + splineCount;
-				triangles[t++] = capIndices[i] + splineCount;
-			}
-		}
-
-		// stitch the pedestal walls
-		for (int i = 0; i < pedSides; i++)
-		{
-			int pTop1 = pedStart + i, pTop2 = pedStart + ((i + 1) % pedSides);
-			int pBot1 = pTop1 + pedSides, pBot2 = pTop2 + pedSides;
-
-			if (settings.isUpperJaw)
-			{
-				triangles[t++] = pTop1; triangles[t++] = pBot1; triangles[t++] = pTop2;
-				triangles[t++] = pTop2; triangles[t++] = pBot1; triangles[t++] = pBot2;
-			}
-			else
-			{
-				triangles[t++] = pTop1; triangles[t++] = pTop2; triangles[t++] = pBot1;
-				triangles[t++] = pTop2; triangles[t++] = pBot2; triangles[t++] = pBot1;
-			}
-		}
-
-		// stitch the pedestal top cap 
-		for (int i = 0; i < pedSides; i++)
-		{
-			int pTop1 = pedStart + i, pTop2 = pedStart + ((i + 1) % pedSides);
-			triangles[t++] = pedTopCenter;
-
-			if (settings.isUpperJaw)
-			{
-				triangles[t++] = pTop1; triangles[t++] = pTop2;
-			}
-			else
-			{
-				triangles[t++] = pTop2; triangles[t++] = pTop1;
-			}
-		}
-
-		// stitch the pedestal bottom cap
-		for (int i = 0; i < pedSides; i++)
-		{
-			int pBot1 = pedStart + pedSides + i, pBot2 = pedStart + pedSides + ((i + 1) % pedSides);
-			triangles[t++] = pedBotCenter;
-
-			if (settings.isUpperJaw)
-			{
-				triangles[t++] = pBot2; triangles[t++] = pBot1;
-			}
-			else
-			{
-				triangles[t++] = pBot1; triangles[t++] = pBot2;
-			}
-		}
-
-		return (vertices, triangles);
-	}
-
 	private void MakeMeshFlatShaded(Mesh mesh)
 	{
 		Vector3[] oldVerts = mesh.vertices;
@@ -1059,20 +803,364 @@ public class BaseBuilder : MonoBehaviour
 		return Quaternion.LookRotation(forwardAxis, upAxis);
 	}
 
-	private bool RequiresReversedWinding(List<Vector3> points, Vector3 upDir)
+	private (Vector3[], int[]) ProcessProfessionalBaseMath(List<Vector3> splinePoints, Quaternion baseRotation, PlinthSettings settings)
 	{
-		Vector3 normal = Vector3.zero;
-
-		for (int i = 0; i < points.Count; i++)
+		// clean the spline
+		List<Vector3> filteredPoints = new() { splinePoints[0] };
+		for (int i = 1; i < splinePoints.Count; i++)
 		{
-			Vector3 current = points[i];
-			Vector3 next = points[(i + 1) % points.Count];
-
-			normal.x += (current.y - next.y) * (current.z + next.z);
-			normal.y += (current.z - next.z) * (current.x + next.x);
-			normal.z += (current.x - next.x) * (current.y + next.y);
+			if (Vector3.Distance(splinePoints[i], filteredPoints[^1]) >= settings.minDistance)
+			{
+				filteredPoints.Add(splinePoints[i]);
+			}
 		}
 
-		return Vector3.Dot(normal, upDir) < 0;
+		splinePoints = filteredPoints;
+		int splineCount = splinePoints.Count;
+
+		Quaternion inverseRotation = Quaternion.Inverse(baseRotation);
+
+		// map limits and local points
+		float minX = float.MaxValue, maxX = float.MinValue;
+		float minZ = float.MaxValue, maxZ = float.MinValue;
+		float lowestY = float.MaxValue, highestY = float.MinValue;
+
+		List<Vector3> localPoints = new();
+		List<Vector2> spline2D = new();
+
+		for (int i = 0; i < splineCount; i++)
+		{
+			Vector3 localPt = inverseRotation * splinePoints[i];
+			localPoints.Add(localPt);
+			spline2D.Add(new Vector2(localPt.x, localPt.z));
+
+			if (localPt.y < lowestY) lowestY = localPt.y;
+			if (localPt.y > highestY) highestY = localPt.y;
+			if (localPt.x < minX) minX = localPt.x;
+			if (localPt.x > maxX) maxX = localPt.x;
+			if (localPt.z < minZ) minZ = localPt.z;
+			if (localPt.z > maxZ) maxZ = localPt.z;
+		}
+
+		float midY = settings.isUpperJaw ? (lowestY - settings.skirtDepth) : (highestY + settings.skirtDepth);
+		float topY = settings.isUpperJaw ? (midY - settings.baseHeight) : (midY + settings.baseHeight);
+
+		// apply padding
+		minX -= settings.widePadding;
+		maxX += settings.widePadding;
+
+		minZ -= settings.widePadding;
+		maxZ += settings.widePadding;
+
+		// master footprint synchronization
+		if (settings.isUpperJaw)
+		{
+			_masterMinX = minX;
+			_masterMaxX = maxX;
+			_masterMinZ = minZ;
+			_masterMaxZ = maxZ;
+		}
+		else
+		{
+			// the lower jaw must match the upper jaw's footprint, so as to interlock
+			minX = _masterMinX;
+			maxX = _masterMaxX;
+			minZ = _masterMinZ;
+			maxZ = _masterMaxZ;
+		}
+
+		// dynamic ABO shape
+		float W = maxX - minX;
+		float D = maxZ - minZ;
+		float MidX = (minX + maxX) / 2f;
+
+		// standard ABO proportion ratios
+		float canineZ = maxZ - (D * 0.35f);  // canines taper in 35% from the front
+		float heelZ = minZ + (D * 0.15f);    // heel cut is 15% deep
+		float heelInsetX = W * 0.15f;        // heel cut is 15% wide
+		float lowerFrontInsetX = W * 0.12f;  // lower jaw flat front width
+
+		Vector2[] aboPolygon;
+
+		if (settings.isUpperJaw)
+		{
+			aboPolygon = new Vector2[7];
+
+			aboPolygon[0] = new Vector2(minX + heelInsetX, minZ); // Back Left
+			aboPolygon[1] = new Vector2(minX, heelZ);             // Side Back Left
+			aboPolygon[2] = new Vector2(minX, canineZ);           // Canine Left
+			aboPolygon[3] = new Vector2(MidX, maxZ);              // Front Point
+			aboPolygon[4] = new Vector2(maxX, canineZ);           // Canine Right
+			aboPolygon[5] = new Vector2(maxX, heelZ);             // Side Back Right
+			aboPolygon[6] = new Vector2(maxX - heelInsetX, minZ); // Back Right
+		}
+		else
+		{
+			aboPolygon = new Vector2[8];
+
+			aboPolygon[0] = new Vector2(minX + heelInsetX, minZ);		// Back Left
+			aboPolygon[1] = new Vector2(minX, heelZ);					// Side Back Left
+			aboPolygon[2] = new Vector2(minX, canineZ);					// Canine Left
+			aboPolygon[3] = new Vector2(MidX - lowerFrontInsetX, maxZ); // Front Left Flat
+			aboPolygon[4] = new Vector2(MidX + lowerFrontInsetX, maxZ); // Front Right Flat
+			aboPolygon[5] = new Vector2(maxX, canineZ);					// Canine Right
+			aboPolygon[6] = new Vector2(maxX, heelZ);					// Side Back Right
+			aboPolygon[7] = new Vector2(maxX - heelInsetX, minZ);		// Back Right
+		}
+
+		// chop the edges into hundreds of tiny segments for the wavy wall
+		Vector2[] denseAboPolygon = DensifyPolygon(aboPolygon, 0.5f); // TODO: put into the Config
+		List<Vector2> outerBound = new(denseAboPolygon);
+
+		// generate flat meshes via Constrained Delaunay Triangulation
+		var (skirtVerts2D, skirtTris) = CDTGenerator.Triangulate2D(outerBound, spline2D);
+		var (botVerts2D, botTris) = CDTGenerator.Triangulate2D(outerBound);
+
+		List<Vector3> finalVerts = new();
+		List<int> finalTris = new();
+
+		Vector2[] spline2DArray = spline2D.ToArray();
+
+		// calculate wavy Y-heights for all the new dense points
+		float[] aboWavyY = new float[denseAboPolygon.Length];
+
+		for (int i = 0; i < denseAboPolygon.Length; i++)
+		{
+			float closestSqrDist = float.MaxValue;
+			float closestY = 0f;
+
+			for (int j = 0; j < spline2D.Count; j++)
+			{
+				float d = (denseAboPolygon[i] - spline2D[j]).sqrMagnitude;
+
+				if (d < closestSqrDist)
+				{
+					closestSqrDist = d;
+					closestY = localPoints[j].y;
+				}
+			}
+
+			float fixedDrop = settings.skirtDepth;
+
+			aboWavyY[i] = settings.isUpperJaw ? Mathf.Max(closestY - fixedDrop, topY) : Mathf.Min(closestY + fixedDrop, topY);
+		}
+
+		// Laplacian array smoothing, i.e. geometric AA
+		int polyLen = denseAboPolygon.Length;
+
+		for (int pass = 0; pass < Config.Instance.smoothingPasses; pass++)
+		{
+			float[] smoothedY = new float[polyLen];
+
+			for (int i = 0; i < polyLen; i++)
+			{
+				float sum = 0f;
+				int count = 0;
+
+				for (int w = -Config.Instance.smoothingWindowSize; w <= Config.Instance.smoothingWindowSize; w++)
+				{
+					// wrap around the closed polygon
+					int idx = (i + w + polyLen) % polyLen;
+					sum += aboWavyY[idx];
+
+					count++;
+				}
+
+				smoothedY[i] = sum / count;
+			}
+
+			// overwrite the jagged array with the newly smoothed array
+			aboWavyY = smoothedY;
+		}
+
+		// lift the skirt to 3D
+		int skirtOffset = finalVerts.Count;
+
+		for (int i = 0; i < skirtVerts2D.Length; i++)
+		{
+			Vector2 v2 = skirtVerts2D[i];
+			float finalY = topY;
+
+			int splineIdx = FindExactIndex(spline2DArray, v2);
+
+			if (splineIdx != -1)
+			{
+				finalY = localPoints[splineIdx].y;
+			}
+			else
+			{
+				int aboIdx = FindExactIndex(denseAboPolygon, v2);
+
+				if (aboIdx != -1)
+				{
+					finalY = aboWavyY[aboIdx];
+				}
+				else
+				{
+					float cSqrDist = float.MaxValue;
+					float cY = 0f;
+
+					for (int j = 0; j < spline2D.Count; j++)
+					{
+						float d = (v2 - spline2D[j]).sqrMagnitude;
+
+						if (d < cSqrDist)
+						{
+							cSqrDist = d;
+							cY = localPoints[j].y;
+						}
+					}
+
+					finalY = settings.isUpperJaw ? Mathf.Max(cY - settings.skirtDepth, topY) : Mathf.Min(cY + settings.skirtDepth, topY);
+				}
+			}
+
+			finalVerts.Add(baseRotation * new Vector3(v2.x, finalY, v2.y));
+		}
+
+		// map the skirt triangles
+		bool reverseSkirt = !settings.isUpperJaw;
+
+		for (int i = 0; i < skirtTris.Length; i += 3)
+		{
+			if (reverseSkirt)
+			{
+				finalTris.Add(skirtTris[i + 2] + skirtOffset);
+				finalTris.Add(skirtTris[i + 1] + skirtOffset);
+				finalTris.Add(skirtTris[i] + skirtOffset);
+			}
+			else
+			{
+				finalTris.Add(skirtTris[i] + skirtOffset);
+				finalTris.Add(skirtTris[i + 1] + skirtOffset);
+				finalTris.Add(skirtTris[i + 2] + skirtOffset);
+			}
+		}
+
+		// lift the bottom cap to 3D
+		int botOffset = finalVerts.Count;
+
+		for (int i = 0; i < botVerts2D.Length; i++)
+		{
+			finalVerts.Add(baseRotation * new Vector3(botVerts2D[i].x, topY, botVerts2D[i].y));
+		}
+
+		bool reverseBot = settings.isUpperJaw;
+
+		for (int i = 0; i < botTris.Length; i += 3)
+		{
+			if (reverseBot)
+			{
+				finalTris.Add(botTris[i + 2] + botOffset);
+				finalTris.Add(botTris[i + 1] + botOffset);
+				finalTris.Add(botTris[i] + botOffset);
+			}
+			else
+			{
+				finalTris.Add(botTris[i] + botOffset);
+				finalTris.Add(botTris[i + 1] + botOffset);
+				finalTris.Add(botTris[i + 2] + botOffset);
+			}
+		}
+
+		// stitch the vertical walls together
+		for (int i = 0; i < denseAboPolygon.Length; i++)
+		{
+			Vector2 current2D = denseAboPolygon[i];
+			Vector2 next2D = denseAboPolygon[(i + 1) % denseAboPolygon.Length];
+
+			int sCurr = FindClosestIndex(skirtVerts2D, current2D) + skirtOffset;
+			int sNext = FindClosestIndex(skirtVerts2D, next2D) + skirtOffset;
+
+			int bCurr = FindClosestIndex(botVerts2D, current2D) + botOffset;
+			int bNext = FindClosestIndex(botVerts2D, next2D) + botOffset;
+
+			if (settings.isUpperJaw)
+			{
+				finalTris.Add(sCurr);
+				finalTris.Add(bCurr);
+				finalTris.Add(sNext);
+
+				finalTris.Add(sNext);
+				finalTris.Add(bCurr);
+				finalTris.Add(bNext);
+			}
+			else
+			{
+				finalTris.Add(sCurr);
+				finalTris.Add(sNext);
+				finalTris.Add(bCurr);
+
+				finalTris.Add(sNext);
+				finalTris.Add(bNext);
+				finalTris.Add(bCurr);
+			}
+		}
+
+		return (finalVerts.ToArray(), finalTris.ToArray());
+	}
+
+	// a mathematically strict index search, which prevents scrambled Y-heights
+	private int FindExactIndex(Vector2[] array, Vector2 target)
+	{
+		int bestIdx = -1;
+		float bestDist = float.MaxValue;
+
+		for (int i = 0; i < array.Length; i++)
+		{
+			float d = Vector2.SqrMagnitude(array[i] - target);
+
+			if (d < bestDist) 
+			{
+				bestDist = d;
+				bestIdx = i;
+			}
+		}
+
+		return bestDist < 1e-5f ? bestIdx : -1;
+	}
+
+	// a forgiving index search, which prevents wall stitching failures
+	private int FindClosestIndex(Vector2[] array, Vector2 target)
+	{
+		int bestIdx = 0;
+		float bestDist = float.MaxValue;
+
+		for (int i = 0; i < array.Length; i++)
+		{
+			float d = Vector2.SqrMagnitude(array[i] - target);
+
+			if (d < bestDist)
+			{
+				bestDist = d;
+				bestIdx = i;
+			}
+		}
+
+		return bestIdx;
+	}
+
+	private Vector2[] DensifyPolygon(Vector2[] polygon, float maxEdgeLength)
+	{
+		List<Vector2> densePoly = new();
+
+		for (int i = 0; i < polygon.Length; i++)
+		{
+			Vector2 p1 = polygon[i];
+			Vector2 p2 = polygon[(i + 1) % polygon.Length];
+
+			densePoly.Add(p1);
+
+			float dist = Vector2.Distance(p1, p2);
+			int segments = Mathf.CeilToInt(dist / maxEdgeLength);
+
+			for (int j = 1; j < segments; j++)
+			{
+				float t = (float)j / segments;
+				densePoly.Add(Vector2.Lerp(p1, p2, t));
+			}
+		}
+
+		return densePoly.ToArray();
 	}
 }

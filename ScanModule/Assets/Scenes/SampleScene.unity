@@ -22352,11 +22352,13 @@ MonoBehaviour:
   closeLoopSnappingThresholdMult: 0.9
   baseMaterial: {fileID: 2100000, guid: db2c2d529b029354eb17b7f8adaf3aad, type: 2}
   cutRadius: 0.0075
-  skirtDepth: 0.01
-  baseHeight: 0.075
-  widePadding: 0.01875
+  skirtDepth: 0.03
+  baseHeight: 0.05
+  widePadding: 0.03
   outwardFlare: 0.002
   minDistance: 0.003
+  smoothingPasses: 8
+  smoothingWindowSize: 3
 --- !u!114 &2129132400
 MonoBehaviour:
   m_ObjectHideFlags: 0
