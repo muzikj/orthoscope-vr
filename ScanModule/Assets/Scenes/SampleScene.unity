@@ -10815,6 +10815,200 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963335096}
   m_CullTransparentMesh: 1
+--- !u!1 &975174880
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 975174882}
+  - component: {fileID: 975174881}
+  m_Layer: 0
+  m_Name: _debugger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &975174881
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 975174880}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c39055441bb82cf41bc561bd2e14f590, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DebugScanAutomator
+  mockOcclusalPoints:
+  - localPosition: {x: -21.482924, y: -7.9197764, z: -10.594678}
+    localEulerAngles: {x: 347.00354, y: 175.31165, z: 0.14003874}
+  - localPosition: {x: -2.8130586, y: 24.516172, z: -6.652998}
+    localEulerAngles: {x: 7.8754277, y: 202.44023, z: 356.28543}
+  - localPosition: {x: 17.520596, y: -2.6527126, z: -14.6227865}
+    localEulerAngles: {x: 1.194741, y: 191.30084, z: 354.61432}
+  mockSagittalPoints:
+  - localPosition: {x: -2.5146854, y: 16.861837, z: -1.5193021}
+    localEulerAngles: {x: 31.109695, y: 183.68494, z: 353.05396}
+  - localPosition: {x: 1.6103774, y: -19.906061, z: -3.250089}
+    localEulerAngles: {x: 321.17847, y: 190.55684, z: 352.0752}
+  mockUpperSpline:
+  - localPosition: {x: -14.903408, y: -20.401752, z: -7.6840177}
+    localEulerAngles: {x: 340.06573, y: 159.52257, z: 350.4548}
+  - localPosition: {x: -4.870526, y: -19.551233, z: -2.9735198}
+    localEulerAngles: {x: 328.71765, y: 160.6979, z: 349.41672}
+  - localPosition: {x: 7.2300234, y: -17.76703, z: -4.9789257}
+    localEulerAngles: {x: 336.06546, y: 211.0733, z: 357.19113}
+  - localPosition: {x: 15.827227, y: -17.203007, z: -11.5387125}
+    localEulerAngles: {x: 340.32983, y: 200.16142, z: 355.3865}
+  - localPosition: {x: 19.94344, y: -18.791626, z: -12.236376}
+    localEulerAngles: {x: 1.0104804, y: 167.00606, z: 351.82974}
+  - localPosition: {x: 24.679352, y: -18.303911, z: -10.643697}
+    localEulerAngles: {x: 24.572992, y: 144.98811, z: 349.75165}
+  - localPosition: {x: 28.884172, y: -14.585771, z: -8.549759}
+    localEulerAngles: {x: 7.189716, y: 135.26062, z: 350.33527}
+  - localPosition: {x: 30.529095, y: -9.046025, z: -5.044451}
+    localEulerAngles: {x: 0.9582661, y: 87.9347, z: 353.45984}
+  - localPosition: {x: 28.396542, y: -1.4826491, z: -2.891569}
+    localEulerAngles: {x: 337.2376, y: 110.63174, z: 350.8154}
+  - localPosition: {x: 24.076244, y: 5.7963886, z: -1.9956126}
+    localEulerAngles: {x: 323.1235, y: 92.3554, z: 351.90305}
+  - localPosition: {x: 20.885553, y: 10.312593, z: -1.4391468}
+    localEulerAngles: {x: 328.0972, y: 88.610275, z: 352.77585}
+  - localPosition: {x: 18.479876, y: 14.136558, z: -1.0442629}
+    localEulerAngles: {x: 317.54147, y: 82.3707, z: 352.99777}
+  - localPosition: {x: 17.055113, y: 16.257143, z: 1.8475741}
+    localEulerAngles: {x: 329.8364, y: 81.92628, z: 353.8353}
+  - localPosition: {x: 13.976436, y: 18.90101, z: 3.931264}
+    localEulerAngles: {x: 334.56543, y: 51.8839, z: 358.86566}
+  - localPosition: {x: 8.513939, y: 21.601328, z: 4.7776027}
+    localEulerAngles: {x: 313.19107, y: 35.688023, z: 2.0094235}
+  - localPosition: {x: 3.0056028, y: 24.074516, z: 4.9109254}
+    localEulerAngles: {x: 308.544, y: 28.616295, z: 3.706612}
+  - localPosition: {x: -1.4606271, y: 24.89554, z: 5.0162225}
+    localEulerAngles: {x: 292.3054, y: 351.37625, z: 16.154976}
+  - localPosition: {x: -4.9084754, y: 24.2492, z: 5.1909304}
+    localEulerAngles: {x: 304.42865, y: 13.182668, z: 7.4927144}
+  - localPosition: {x: -9.977426, y: 21.603546, z: 6.326078}
+    localEulerAngles: {x: 318.40445, y: 307.76532, z: 12.869351}
+  - localPosition: {x: -14.49731, y: 17.965912, z: 6.644442}
+    localEulerAngles: {x: 322.85947, y: 312.1695, z: 12.031339}
+  - localPosition: {x: -19.579552, y: 13.632305, z: 6.851852}
+    localEulerAngles: {x: 327.1673, y: 309.7818, z: 11.43478}
+  - localPosition: {x: -21.837456, y: 8.948965, z: 6.8279715}
+    localEulerAngles: {x: 347.2378, y: 277.9296, z: 8.02079}
+  - localPosition: {x: -22.866787, y: 6.7311063, z: 5.2414136}
+    localEulerAngles: {x: 322.15216, y: 289.1026, z: 11.517495}
+  - localPosition: {x: -23.652184, y: 4.0041833, z: 4.429254}
+    localEulerAngles: {x: 336.661, y: 291.50235, z: 9.839844}
+  - localPosition: {x: -25.319874, y: 0.5453967, z: 4.141122}
+    localEulerAngles: {x: 336.88907, y: 284.65686, z: 9.316076}
+  - localPosition: {x: -27.248596, y: -3.3846638, z: 3.052181}
+    localEulerAngles: {x: 338.56424, y: 288.7413, z: 9.497264}
+  - localPosition: {x: -29.143137, y: -7.5133553, z: 1.8383548}
+    localEulerAngles: {x: 337.91, y: 271.52142, z: 7.8664145}
+  - localPosition: {x: -29.643047, y: -11.299759, z: 0.41119307}
+    localEulerAngles: {x: 356.59015, y: 254.21585, z: 4.716837}
+  - localPosition: {x: -28.88891, y: -15.181962, z: -2.207835}
+    localEulerAngles: {x: 6.530445, y: 234.0227, z: 1.4460582}
+  - localPosition: {x: -27.486822, y: -17.724323, z: -3.5314665}
+    localEulerAngles: {x: 9.3850155, y: 228.07794, z: 0.4590129}
+  - localPosition: {x: -25.486162, y: -21.205006, z: -5.332637}
+    localEulerAngles: {x: 10.227496, y: 231.79378, z: 1.0760766}
+  - localPosition: {x: -22.797398, y: -22.339804, z: -7.5280204}
+    localEulerAngles: {x: 18.790567, y: 224.75827, z: 359.9049}
+  - localPosition: {x: -18.470762, y: -21.921417, z: -9.211951}
+    localEulerAngles: {x: 12.963023, y: 165.04631, z: 351.59738}
+  - localPosition: {x: -14.903408, y: -20.401752, z: -7.6840177}
+    localEulerAngles: {x: 340.06573, y: 159.52257, z: 350.4548}
+  mockLowerSpline:
+  - localPosition: {x: -1.5287797, y: 14.419909, z: -15.223455}
+    localEulerAngles: {x: 65.48163, y: 346.51492, z: 2.6874158}
+  - localPosition: {x: -7.1618586, y: 13.652425, z: -15.07571}
+    localEulerAngles: {x: 64.117004, y: 40.887833, z: 4.577275}
+  - localPosition: {x: -12.189297, y: 10.007202, z: -13.992763}
+    localEulerAngles: {x: 41.27944, y: 75.45742, z: 2.212133}
+  - localPosition: {x: -15.336788, y: 5.223317, z: -14.795545}
+    localEulerAngles: {x: 28.82305, y: 79.88043, z: 1.778887}
+  - localPosition: {x: -16.436346, y: 1.3392733, z: -14.36845}
+    localEulerAngles: {x: 3.9682567, y: 88.20284, z: 1.3441412}
+  - localPosition: {x: -17.212393, y: -3.482951, z: -15.158653}
+    localEulerAngles: {x: 354.9136, y: 94.89881, z: 1.1577162}
+  - localPosition: {x: -17.20069, y: -7.8244896, z: -16.069687}
+    localEulerAngles: {x: 5.196752, y: 105.11413, z: 0.8542151}
+  - localPosition: {x: -18.81271, y: -12.545745, z: -18.735113}
+    localEulerAngles: {x: 2.1059537, y: 110.71275, z: 0.66871923}
+  - localPosition: {x: -18.319662, y: -16.267916, z: -15.914193}
+    localEulerAngles: {x: 358.21332, y: 90.12905, z: 1.2873507}
+  - localPosition: {x: -18.94439, y: -19.601877, z: -12.475136}
+    localEulerAngles: {x: 0.29300594, y: 70.37052, z: 1.7294351}
+  - localPosition: {x: -22.126688, y: -21.59012, z: -9.863526}
+    localEulerAngles: {x: 23.736944, y: 24.104908, z: 2.0902057}
+  - localPosition: {x: -26.065271, y: -19.438353, z: -9.798789}
+    localEulerAngles: {x: 344.75052, y: 354.27115, z: 1.4520609}
+  - localPosition: {x: -30.088932, y: -12.172783, z: -12.618881}
+    localEulerAngles: {x: 344.36884, y: 332.1289, z: 0.78293407}
+  - localPosition: {x: -29.496044, y: -3.2017179, z: -14.145539}
+    localEulerAngles: {x: 335.43594, y: 295.1654, z: 359.4204}
+  - localPosition: {x: -25.491058, y: 5.2026057, z: -13.137656}
+    localEulerAngles: {x: 326.85806, y: 274.30368, z: 358.57288}
+  - localPosition: {x: -21.615122, y: 13.023508, z: -11.251202}
+    localEulerAngles: {x: 329.9286, y: 300.2717, z: 359.59326}
+  - localPosition: {x: -17.998386, y: 18.28459, z: -10.534917}
+    localEulerAngles: {x: 315.9354, y: 286.62372, z: 358.8508}
+  - localPosition: {x: -12.472352, y: 20.796642, z: -9.662533}
+    localEulerAngles: {x: 299.39868, y: 278.78412, z: 357.75787}
+  - localPosition: {x: -7.2682085, y: 22.78299, z: -9.893592}
+    localEulerAngles: {x: 284.92606, y: 253.8212, z: 353.0597}
+  - localPosition: {x: -0.87513214, y: 23.575537, z: -11.976456}
+    localEulerAngles: {x: 290.57233, y: 152.35724, z: 358.02374}
+  - localPosition: {x: 4.554029, y: 22.438389, z: -12.832393}
+    localEulerAngles: {x: 298.5702, y: 142.45938, z: 359.16412}
+  - localPosition: {x: 10.148199, y: 20.623753, z: -14.207879}
+    localEulerAngles: {x: 308.99353, y: 85.539314, z: 2.167538}
+  - localPosition: {x: 13.471675, y: 16.510132, z: -16.241146}
+    localEulerAngles: {x: 316.10486, y: 88.82435, z: 1.7895932}
+  - localPosition: {x: 17.010893, y: 11.903195, z: -19.103643}
+    localEulerAngles: {x: 329.11035, y: 100.162895, z: 1.1462091}
+  - localPosition: {x: 20.395113, y: 7.4177003, z: -20.35458}
+    localEulerAngles: {x: 321.88177, y: 97.95547, z: 1.3259277}
+  - localPosition: {x: 23.415714, y: 2.1638188, z: -21.050852}
+    localEulerAngles: {x: 329.54324, y: 87.861786, z: 1.5395521}
+  - localPosition: {x: 25.895176, y: -3.1867697, z: -20.23924}
+    localEulerAngles: {x: 343.48627, y: 80.17994, z: 1.5881642}
+  - localPosition: {x: 25.909306, y: -9.39581, z: -17.336903}
+    localEulerAngles: {x: 333.82532, y: 19.439154, z: 2.096488}
+  - localPosition: {x: 22.274082, y: -12.423643, z: -14.2444725}
+    localEulerAngles: {x: 342.54727, y: 41.15799, z: 2.0957532}
+  - localPosition: {x: 15.409583, y: -12.361805, z: -18.865685}
+    localEulerAngles: {x: 7.8478727, y: 295.7583, z: 359.49863}
+  - localPosition: {x: 14.5345125, y: -8.054337, z: -26.364237}
+    localEulerAngles: {x: 21.162247, y: 265.2704, z: 358.49945}
+  - localPosition: {x: 11.475532, y: 0.62482536, z: -24.5591}
+    localEulerAngles: {x: 20.337706, y: 277.5836, z: 358.86237}
+  - localPosition: {x: 4.652244, y: 11.4892645, z: -18.189566}
+    localEulerAngles: {x: 52.5723, y: 313.53073, z: 0.18289803}
+  - localPosition: {x: -1.5287797, y: 14.419909, z: -15.223455}
+    localEulerAngles: {x: 65.48163, y: 346.51492, z: 2.6874158}
+--- !u!4 &975174882
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 975174880}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &976442729
 GameObject:
   m_ObjectHideFlags: 0
@@ -24763,4 +24957,5 @@ SceneRoots:
   - {fileID: 2044498403}
   - {fileID: 921848693}
   - {fileID: 1860249089}
+  - {fileID: 975174882}
   - {fileID: 11205814}

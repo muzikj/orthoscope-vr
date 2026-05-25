@@ -4,7 +4,7 @@ using System.Collections.Generic;
 [RequireComponent(typeof(TubeRenderer))]
 public class ScanSpline : MonoBehaviour
 {
-    public bool bClosed { get; private set; } = false;
+    public bool bClosed = false;
 
     private TubeRenderer _tubeRenderer;
 
