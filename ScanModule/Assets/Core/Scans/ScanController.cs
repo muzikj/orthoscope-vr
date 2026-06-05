@@ -40,6 +40,12 @@ public class ScanController : MonoBehaviour
     private void Start()
     {
         MakeDefault();
+
+        // make culling double-sided
+        if (_renderer.material.HasProperty("_Cull"))
+        {
+            _renderer.material.SetFloat("_Cull", 0f);
+        }
     }
 
     private void Update()
@@ -146,7 +152,10 @@ public class ScanController : MonoBehaviour
     {
         if (modelTheme != null && modelTheme.highlightedMaterial != null)
         {
+            float currentCull = _renderer.material.HasProperty("_Cull") ? _renderer.material.GetFloat("_Cull") : 2f;
+
             _renderer.sharedMaterial = modelTheme.highlightedMaterial;
+            _renderer.material.SetFloat("_Cull", currentCull);
         }
     }
 
@@ -154,7 +163,10 @@ public class ScanController : MonoBehaviour
     {
         if (modelTheme != null && modelTheme.defaultMaterial != null)
         {
+            float currentCull = _renderer.material.HasProperty("_Cull") ? _renderer.material.GetFloat("_Cull") : 2f;
+
             _renderer.sharedMaterial = modelTheme.defaultMaterial;
+            _renderer.material.SetFloat("_Cull", currentCull);
         }
     }
 
@@ -190,32 +202,32 @@ public class ScanController : MonoBehaviour
         switch (view)
         {
             case OrthoView.Front:
-                targetRotation = _originalRotation * Quaternion.identity;
+                targetRotation = _originalRotation;
 
                 break;
 
             case OrthoView.Back:
-                targetRotation = _originalRotation * Quaternion.Euler(0f, 180f, 0f);
+                targetRotation = Quaternion.Euler(0f, 180f, 0f) * _originalRotation;
 
                 break;
 
             case OrthoView.Left:
-                targetRotation = _originalRotation * Quaternion.Euler(0f, -90f, 0f);
+                targetRotation = Quaternion.Euler(0f, -90f, 0f) * _originalRotation;
 
                 break;
 
             case OrthoView.Right:
-                targetRotation = _originalRotation * Quaternion.Euler(0f, 90f, 0f);
+                targetRotation = Quaternion.Euler(0f, 90f, 0f) * _originalRotation;
 
                 break;
 
             case OrthoView.Top:
-                targetRotation = _originalRotation * Quaternion.Euler(90f, 0f, 0f);
+                targetRotation = Quaternion.Euler(90f, 0f, 0f) * _originalRotation;
 
                 break;
 
             case OrthoView.Bottom:
-                targetRotation = _originalRotation * Quaternion.Euler(-90f, 0f, 0f);
+                targetRotation = Quaternion.Euler(-90f, 0f, 0f) * _originalRotation;
 
                 break;
         }
@@ -262,5 +274,12 @@ public class ScanController : MonoBehaviour
     private void HandleGroupGrabEnded()
     {
         _isFollower = false;
+    }
+
+    public void UpdateHomeState()
+    {
+        _originalPosition = transform.position;
+        _originalRotation = transform.localRotation;
+        _originalScale = transform.localScale;
     }
 }

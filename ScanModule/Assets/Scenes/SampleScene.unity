@@ -171,6 +171,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: XR Device Simulator
       objectReference: {fileID: 0}
+    - target: {fileID: 6598815579406187037, guid: 18ddb545287c546e19cc77dc9fbb2189, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -22333,7 +22337,7 @@ MonoBehaviour:
   scanScale: 0.01
   scanRotation: {x: 0, y: 0, z: 0, w: 1}
   holdThreshold: 0.35
-  raycastMaxDistance: 3
+  raycastMaxDistance: 7.5
   scanRaycastLayer:
     serializedVersion: 2
     m_Bits: 256
@@ -22344,7 +22348,7 @@ MonoBehaviour:
   loopSplineMaterial: {fileID: 2100000, guid: 91ce920f0ac3e0249944dcb127efbbb2, type: 2}
   markProgressMat: {fileID: 2100000, guid: 4913eb4b5c008b449b0488bb0bdc1e34, type: 2}
   markCompleteMat: {fileID: 2100000, guid: e59675fb6d3d6a342854a9f0c725f018, type: 2}
-  splineRadius: 0.005
+  splineRadius: 0.0025
   splineSurfaceOffset: 0.0005
   projectionDistance: 0.05
   splineCurveResolution: 16

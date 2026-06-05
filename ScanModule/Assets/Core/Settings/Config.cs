@@ -14,8 +14,7 @@ public class Config : MonoBehaviour
     [Tooltip("Time in seconds to hold before triggering a hold action.")]
     public float holdThreshold = 0.35f;
     [Tooltip("Maximum distance for raycasting when placing spline marks.")]
-    public float raycastMaxDistance = 3.0f;
-
+    public float raycastMaxDistance = 7.5f;
     [Header("Spline Marking Settings")]
     [Tooltip("LayerMask for raycasting when placing spline markers.")]
     public LayerMask scanRaycastLayer;
@@ -34,7 +33,7 @@ public class Config : MonoBehaviour
     [Tooltip("Material for the completed line/plane.")]
     public Material markCompleteMat;
     [Tooltip("Radius of the spline.")]
-    public float splineRadius = 0.005f;
+    public float splineRadius = 0.0025f;
     [Tooltip("Offset for the spline surface to prevent z-fighting.")]
     public float splineSurfaceOffset = 0.0005f;
     [Tooltip("How far out to start the raycast (in meters).")]
@@ -52,11 +51,11 @@ public class Config : MonoBehaviour
     [Tooltip("How far away from the tube the triangles still get cut (in meters).")]
     public float cutRadius = 0.0075f;
     [Tooltip("How far the skirt (between the n-gon and the teeth) of the base drops (in meters).")]
-    public float skirtDepth = 0.003f;
+    public float skirtDepth = 0.03f;
     [Tooltip("How tall the straight n-gon walls are (in meters).")]
-    public float baseHeight = 0.075f;
+    public float baseHeight = 0.05f;
     [Tooltip("How much wider the base n-gon is than the teeth (in meters).")]
-    public float widePadding = 0.003f;
+    public float widePadding = 0.03f;
     [Tooltip("How much to flare out the skirt, so it droops nicely (in meters).")]
     public float outwardFlare = 0.002f;
     [Tooltip("Minimum distance between spline points to count them (in meters).")]

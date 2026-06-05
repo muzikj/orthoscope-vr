@@ -139,8 +139,12 @@ public class BaseBuilder : MonoBehaviour
 
 			_baseRotation = CalculateRotation();
 
+			if (upperSpline.transform.parent.TryGetComponent<MeshRenderer>(out var upperRenderer))
+			{
+				upperRenderer.material.SetFloat("_Cull", 2f);
+			}
+
 			await TrimmingAndBasePipelineAsync(upperSpline);
-			upperSpline.gameObject.SetActive(false);
 
 			_bUpperJaw = false;
 			
@@ -170,11 +174,19 @@ public class BaseBuilder : MonoBehaviour
 			currentState = BuilderState.MeshingLower;
 			ScanEvents.RequestUIMessage("State Advanced:\nNow processing the Lower Base...");
 
+			if (lowerSpline.transform.parent.TryGetComponent<MeshRenderer>(out var lowerRenderer))
+			{
+				lowerRenderer.material.SetFloat("_Cull", 2f);
+			}
+
 			await TrimmingAndBasePipelineAsync(lowerSpline);
-			lowerSpline.gameObject.SetActive(false);
 
 			currentState = BuilderState.Finished;
 			ScanEvents.RequestUIMessage("Success!\nLower Base Complete!\nABO Base Finished!");
+
+			await Task.Delay(3500);
+
+			ResetBuilderState();
 		}
 	}
 
@@ -497,6 +509,15 @@ public class BaseBuilder : MonoBehaviour
 		{
 			spline.transform.parent.position = Vector3.one;
 		}
+
+		if (spline.transform.parent.TryGetComponent<ScanController>(out var controller))
+		{
+			controller.UpdateHomeState();
+		}
+
+		spline.ClearMarks();
+
+		spline.gameObject.SetActive(false);
 	}
 
 	public async Task TrimScanAsync(MeshFilter scanMeshFilter, ScanSpline cutSpline)
@@ -1162,5 +1183,32 @@ public class BaseBuilder : MonoBehaviour
 		}
 
 		return densePoly.ToArray();
+	}
+
+	private void ResetBuilderState()
+	{
+		foreach (GameObject mark in _occlusalMarks)
+		{
+			Destroy(mark);
+		}
+
+		foreach (GameObject mark in _sagittalMarks)
+		{
+			Destroy(mark);
+		}
+
+		_occlusalMarks.Clear();
+		_sagittalMarks.Clear();
+
+		_occlusalPoints.Clear();
+		_sagittalPoints.Clear();
+
+		// reset main flag and state
+		_bUpperJaw = true;
+
+		currentState = BuilderState.MarkOcclusal;
+
+		// update the UI
+		ScanEvents.RequestUIMessage("Builder Auto-Reset!\nReady for a new scan. Place 3 Occlusal points.");
 	}
 }
