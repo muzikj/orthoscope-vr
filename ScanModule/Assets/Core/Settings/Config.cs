@@ -24,6 +24,8 @@ public class Config : MonoBehaviour
     public GameObject ghostMarkPrefab;
     [Tooltip("GameObject Prefab for the closing ghost mark (preview for closing the loop - bigger than a normal Mark).")]
     public GameObject closingGhostMarkPrefab;
+    [Tooltip("GameObject Prefab for the plane preview (the flat surface preview when finishing an occlusal or sagittal plane).")]
+    public GameObject planePreviewPrefab;
     [Tooltip("Material for the spline.")]
     public Material splineMaterial;
     [Tooltip("Material for the loop spline (the spline that connects the last point to the first).")]
@@ -32,6 +34,10 @@ public class Config : MonoBehaviour
     public Material markProgressMat;
     [Tooltip("Material for the completed line/plane.")]
     public Material markCompleteMat;
+    [Tooltip("Material for the occlusal plane.")]
+    public Material occlusalPlaneMaterial;
+    [Tooltip("Material for the sagittal plane.")]
+    public Material sagittalPlaneMaterial;
     [Tooltip("Radius of the spline.")]
     public float splineRadius = 0.0025f;
     [Tooltip("Offset for the spline surface to prevent z-fighting.")]

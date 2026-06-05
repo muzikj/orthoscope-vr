@@ -20,6 +20,9 @@ public class BaseBuilder : MonoBehaviour
 	private readonly List<Vector3> _occlusalPoints = new();
 	private readonly List<Vector3> _sagittalPoints = new();
 
+	private GameObject _occlusalPlanePreview;
+	private GameObject _sagittalPlanePreview;
+
 	private readonly List<GameObject> _occlusalMarks = new();
 	private readonly List<GameObject> _sagittalMarks = new();
 
@@ -111,6 +114,12 @@ public class BaseBuilder : MonoBehaviour
 				return;
 			}
 
+			DestroyPlanePreviews();
+
+			_baseRotation = CalculateRotation();
+
+			DestroyPlanePoints();
+
 			currentState = BuilderState.MarkUpperGums;
 			ScanEvents.RequestUIMessage("State Advanced\nNow marking Gum Splines. TubeRenderer active!");
 		}
@@ -136,8 +145,6 @@ public class BaseBuilder : MonoBehaviour
 
 			currentState = BuilderState.MeshingUpper;
 			ScanEvents.RequestUIMessage("State Advanced:\nNow processing the Upper Base...");
-
-			_baseRotation = CalculateRotation();
 
 			if (upperSpline.transform.parent.TryGetComponent<MeshRenderer>(out var upperRenderer))
 			{
@@ -753,6 +760,8 @@ public class BaseBuilder : MonoBehaviour
 			UpdateMarkColors(_sagittalMarks, 2);
 			ScanEvents.RequestUIMessage($"Sagittal point added. ({_sagittalPoints.Count}/2)");
 		}
+
+		UpdatePlanePreviews(scanTransform);
 	}
 
 	public void RemoveLastPoint()
@@ -772,6 +781,25 @@ public class BaseBuilder : MonoBehaviour
 
 			UpdateMarkColors(_sagittalMarks, 2);
 			ScanEvents.RequestUIMessage($"Last sagittal point removed. ({_sagittalPoints.Count}/2)");
+		}
+
+		Transform parentTransform = null;
+		if (_occlusalMarks.Count > 0)
+		{
+			parentTransform = _occlusalMarks[0].transform.parent;
+		}
+		else if (_sagittalMarks.Count > 0)
+		{
+			parentTransform = _sagittalMarks[0].transform.parent;
+		}
+
+		if (parentTransform != null)
+		{
+			UpdatePlanePreviews(parentTransform);
+		}
+		else
+		{
+			DestroyPlanePreviews();
 		}
 	}
 
@@ -805,23 +833,30 @@ public class BaseBuilder : MonoBehaviour
 			return Quaternion.identity;
 		}
 
-		Vector3 occlusalMolarRight = _occlusalPoints[(int)OcclusalPoint.MolarRight];
-		Vector3 occlusalIncisorMiddle = _occlusalPoints[(int)OcclusalPoint.IncisorMiddle];
-		Vector3 occlusalMolarLeft = _occlusalPoints[(int)OcclusalPoint.MolarLeft];
+		Vector3 upAxis = CalculateUpAxis();
 
 		Vector3 sagittalFront = _sagittalPoints[(int)SagittalPoint.Front];
 		Vector3 sagittalBack = _sagittalPoints[(int)SagittalPoint.Back];
-
-		// get the top (up) axis
-		Vector3 v1 = occlusalIncisorMiddle - occlusalMolarRight;
-		Vector3 v2 = occlusalMolarLeft - occlusalMolarRight;
-		Vector3 upAxis = Vector3.Cross(v1, v2).normalized;
 
 		// get the forward (front) axis, so that it points away from the mouth
 		Vector3 sagittalDir = sagittalFront - sagittalBack;
 		Vector3 forwardAxis = Vector3.ProjectOnPlane(sagittalDir, upAxis).normalized;
 
 		return Quaternion.LookRotation(forwardAxis, upAxis);
+	}
+
+	private Vector3 CalculateUpAxis()
+	{
+		if (_occlusalPoints.Count < 3)
+		{
+			return Vector3.up;
+		}
+
+		Vector3 occlusalMolarRight = _occlusalPoints[(int)OcclusalPoint.MolarRight];
+		Vector3 occlusalIncisorMiddle = _occlusalPoints[(int)OcclusalPoint.IncisorMiddle];
+		Vector3 occlusalMolarLeft = _occlusalPoints[(int)OcclusalPoint.MolarLeft];
+
+		return Vector3.Cross(occlusalIncisorMiddle - occlusalMolarRight, occlusalMolarLeft - occlusalMolarRight).normalized;
 	}
 
 	private (Vector3[], int[]) ProcessProfessionalBaseMath(List<Vector3> splinePoints, Quaternion baseRotation, PlinthSettings settings)
@@ -1187,21 +1222,8 @@ public class BaseBuilder : MonoBehaviour
 
 	private void ResetBuilderState()
 	{
-		foreach (GameObject mark in _occlusalMarks)
-		{
-			Destroy(mark);
-		}
-
-		foreach (GameObject mark in _sagittalMarks)
-		{
-			Destroy(mark);
-		}
-
-		_occlusalMarks.Clear();
-		_sagittalMarks.Clear();
-
-		_occlusalPoints.Clear();
-		_sagittalPoints.Clear();
+		DestroyPlanePreviews();
+		DestroyPlanePoints();
 
 		// reset main flag and state
 		_bUpperJaw = true;
@@ -1211,4 +1233,118 @@ public class BaseBuilder : MonoBehaviour
 		// update the UI
 		ScanEvents.RequestUIMessage("Builder Auto-Reset!\nReady for a new scan. Place 3 Occlusal points.");
 	}
+
+	private void UpdatePlanePreviews(Transform scanTransform)
+	{
+		if (scanTransform == null || Config.Instance.planePreviewPrefab == null)
+		{
+			return;
+		}
+
+		// occlusal plane preview
+		if (_occlusalPoints.Count == 3)
+		{
+			if (_occlusalPlanePreview == null)
+			{
+				_occlusalPlanePreview = Instantiate(Config.Instance.planePreviewPrefab, scanTransform, false);
+				_occlusalPlanePreview.name = "Preview_OcclusalPlane";
+
+				if (Config.Instance.occlusalPlaneMaterial != null && _occlusalPlanePreview.TryGetComponent<MeshRenderer>(out var occlusalRenderer))
+				{
+                    occlusalRenderer.sharedMaterial = Config.Instance.occlusalPlaneMaterial;
+				}
+            }
+
+			Vector3 upAxis = CalculateUpAxis();
+
+			Vector3 occlusalMolarRight = _occlusalPoints[(int)OcclusalPoint.MolarRight];
+			Vector3 occlusalIncisorMiddle = _occlusalPoints[(int)OcclusalPoint.IncisorMiddle];
+			Vector3 occlusalMolarLeft = _occlusalPoints[(int)OcclusalPoint.MolarLeft];
+
+			// temp fwd axis, since sagittal points have not been placed yet
+			Vector3 tempForward = (occlusalIncisorMiddle - occlusalMolarRight).normalized;
+			Vector3 center = (occlusalMolarRight + occlusalIncisorMiddle + occlusalMolarLeft) / 3f;
+
+			_occlusalPlanePreview.transform.SetLocalPositionAndRotation(center, Quaternion.LookRotation(tempForward, upAxis));
+
+			_occlusalPlanePreview.SetActive(true);
+		}
+		else if (_occlusalPlanePreview != null) // if we removed an occlusal point (undo)
+		{
+			_occlusalPlanePreview.SetActive(false);
+		}
+
+		// sagittal plane preview
+		if (_occlusalPoints.Count == 3 && _sagittalPoints.Count == 2)
+		{
+			if (_sagittalPlanePreview == null)
+			{
+				_sagittalPlanePreview = Instantiate(Config.Instance.planePreviewPrefab, scanTransform, false);
+				_sagittalPlanePreview.name = "Preview_SagittalPlane";
+
+				if (Config.Instance.sagittalPlaneMaterial != null && _sagittalPlanePreview.TryGetComponent<MeshRenderer>(out var sagittalRenderer))
+				{
+					sagittalRenderer.sharedMaterial = Config.Instance.sagittalPlaneMaterial;
+                }
+            }
+
+			Quaternion finalRotation = CalculateRotation();
+
+			Vector3 forwardAxis = finalRotation * Vector3.forward;
+			Vector3 rightAxis = finalRotation * Vector3.right;
+
+			// update the occlusal plane to snap to the true fwd vector
+			if (_occlusalPlanePreview != null)
+			{
+				_occlusalPlanePreview.transform.localRotation = finalRotation;
+			}
+
+			Vector3 sagittalFront = _sagittalPoints[(int)SagittalPoint.Front];
+			Vector3 sagittalBack = _sagittalPoints[(int)SagittalPoint.Back];
+
+			Vector3 center = (sagittalFront + sagittalBack) / 2f;
+
+			_sagittalPlanePreview.transform.SetLocalPositionAndRotation(center, Quaternion.LookRotation(forwardAxis, rightAxis));
+
+			_sagittalPlanePreview.SetActive(true);
+		}
+		else if (_sagittalPlanePreview != null) // if we removed a sagittal point (undo)
+		{
+			_sagittalPlanePreview.SetActive(false);
+		}
+	}
+
+	private void DestroyPlanePreviews()
+	{
+		if (_occlusalPlanePreview != null)
+		{
+			Destroy(_occlusalPlanePreview);
+			_occlusalPlanePreview = null;
+		}
+
+		if (_sagittalPlanePreview != null)
+		{
+			Destroy(_sagittalPlanePreview);
+			_sagittalPlanePreview = null;
+		}
+	}
+
+	private void DestroyPlanePoints()
+	{
+        foreach (GameObject mark in _occlusalMarks)
+        {
+            Destroy(mark);
+        }
+
+        foreach (GameObject mark in _sagittalMarks)
+        {
+            Destroy(mark);
+        }
+
+        _occlusalMarks.Clear();
+        _sagittalMarks.Clear();
+
+        _occlusalPoints.Clear();
+        _sagittalPoints.Clear();
+    }
 }

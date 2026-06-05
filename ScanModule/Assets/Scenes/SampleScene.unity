@@ -22344,10 +22344,13 @@ MonoBehaviour:
   markPrefab: {fileID: 6421686284546096247, guid: db34f462e728e0b4d86bed3139d5fcd3, type: 3}
   ghostMarkPrefab: {fileID: 4714554194231571099, guid: 44aac1c48eac36b488ee7528ab0a7e74, type: 3}
   closingGhostMarkPrefab: {fileID: 108427168954656186, guid: 059d1974063ca65499e7fc311c28ef33, type: 3}
+  planePreviewPrefab: {fileID: 5903130983192374452, guid: 9d1e8fd72521a89448a345984d39ee80, type: 3}
   splineMaterial: {fileID: 2100000, guid: 1b5a2e6e2b518924dad2e0a1ee0d8b4c, type: 2}
   loopSplineMaterial: {fileID: 2100000, guid: 91ce920f0ac3e0249944dcb127efbbb2, type: 2}
   markProgressMat: {fileID: 2100000, guid: 4913eb4b5c008b449b0488bb0bdc1e34, type: 2}
   markCompleteMat: {fileID: 2100000, guid: e59675fb6d3d6a342854a9f0c725f018, type: 2}
+  occlusalPlaneMaterial: {fileID: 2100000, guid: 8b7218acad2196049a2f7f5f4a5ef24c, type: 2}
+  sagittalPlaneMaterial: {fileID: 2100000, guid: e6f7b9bb434144f47a9b442c2207b73e, type: 2}
   splineRadius: 0.0025
   splineSurfaceOffset: 0.0005
   projectionDistance: 0.05
