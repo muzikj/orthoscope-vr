@@ -51,7 +51,11 @@ public class ScanEvents // TODO: add sound effects
     public static event Action<OrthoView> OnSnapViewRequested;
     public static void RequestSnapView(OrthoView view) => OnSnapViewRequested?.Invoke(view);
 
-    // multi-grabbing mvoement
+    // aligning finished bases
+    public static event Action OnAlignBasesRequested;
+    public static void RequestAlignBases() => OnAlignBasesRequested?.Invoke();
+
+    // multi-grabbing movement
     public static event Action<Transform> OnGroupGrabStarted;
     public static event Action<Transform> OnGroupMoved;
     public static event Action OnGroupGrabEnded;

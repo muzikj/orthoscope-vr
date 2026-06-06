@@ -519,7 +519,9 @@ public class BaseBuilder : MonoBehaviour
 
 		if (spline.transform.parent.TryGetComponent<ScanController>(out var controller))
 		{
-			controller.UpdateHomeState();
+            controller.jawType = _bUpperJaw ? ScanController.JawType.Upper : ScanController.JawType.Lower;
+
+            controller.UpdateOriginalState();
 		}
 
 		spline.ClearMarks();

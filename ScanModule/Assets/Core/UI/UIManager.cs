@@ -161,6 +161,8 @@ public class UIManager : MonoBehaviour
     public void ClickViewTop() => ScanEvents.RequestSnapView(OrthoView.Top);
     public void ClickViewBottom() => ScanEvents.RequestSnapView(OrthoView.Bottom);
 
+    public void ClickAlignBases() => ScanEvents.RequestAlignBases();
+
     private void HandleUIMessageRequested(string message)
     {
         ChangeText(message);

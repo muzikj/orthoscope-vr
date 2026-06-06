@@ -10,12 +10,21 @@ public class ScanController : MonoBehaviour
 
     public bool Selected { get; private set; } = false;
 
+    public enum JawType
+    {
+        Unassigned,
+        Upper,
+        Lower
+    }
+
+    public JawType jawType = JawType.Unassigned;
+
     private MeshRenderer _renderer;
     private XRGrabInteractable _grabInteractable;
 
-    private Vector3 _originalPosition;
-    private Vector3 _originalScale;
-    private Quaternion _originalRotation;
+    public Vector3 OriginalPosition { get; private set; }
+    public Vector3 OriginalScale { get; private set; }
+    public Quaternion OriginalRotation { get; private set; }
 
     private float _triggerStartTime = 0f;
     private bool _triggerHeld = false;
@@ -32,9 +41,9 @@ public class ScanController : MonoBehaviour
         _renderer = GetComponent<MeshRenderer>();
         _grabInteractable = GetComponent<XRGrabInteractable>();
 
-        _originalPosition = transform.position;
-        _originalScale = transform.localScale;
-        _originalRotation = transform.localRotation;
+        OriginalPosition = transform.position;
+        OriginalScale = transform.localScale;
+        OriginalRotation = transform.localRotation;
     }
 
     private void Start()
@@ -181,53 +190,53 @@ public class ScanController : MonoBehaviour
     {
         if (!Selected) return;
 
-        transform.position = _originalPosition;
-        transform.localScale = _originalScale;
-        transform.localRotation = _originalRotation;
+        transform.position = OriginalPosition;
+        transform.localScale = OriginalScale;
+        transform.localRotation = OriginalRotation;
     }
 
     private void HandleScaleRequested(float scaleFactor) // when changing the scale of e.g. upper and lower teeth scans, the gap inbetween will NOT be adequate when scaling up OR down, as we are not scaling relative to the origin of both the scans, but rather their two distinct INDIVIDUAL origins
     {
         if (!Selected) return;
 
-        transform.localScale = _originalScale * scaleFactor;
+        transform.localScale = OriginalScale * scaleFactor;
     }
 
     private void HandleSnapViewRequested(OrthoView view)
     {
         if (!Selected) return;
 
-        Quaternion targetRotation = _originalRotation;
+        Quaternion targetRotation = OriginalRotation;
 
         switch (view)
         {
             case OrthoView.Front:
-                targetRotation = _originalRotation;
+                targetRotation = OriginalRotation;
 
                 break;
 
             case OrthoView.Back:
-                targetRotation = Quaternion.Euler(0f, 180f, 0f) * _originalRotation;
+                targetRotation = Quaternion.Euler(0f, 180f, 0f) * OriginalRotation;
 
                 break;
 
             case OrthoView.Left:
-                targetRotation = Quaternion.Euler(0f, -90f, 0f) * _originalRotation;
+                targetRotation = Quaternion.Euler(0f, -90f, 0f) * OriginalRotation;
 
                 break;
 
             case OrthoView.Right:
-                targetRotation = Quaternion.Euler(0f, 90f, 0f) * _originalRotation;
+                targetRotation = Quaternion.Euler(0f, 90f, 0f) * OriginalRotation;
 
                 break;
 
             case OrthoView.Top:
-                targetRotation = Quaternion.Euler(90f, 0f, 0f) * _originalRotation;
+                targetRotation = Quaternion.Euler(90f, 0f, 0f) * OriginalRotation;
 
                 break;
 
             case OrthoView.Bottom:
-                targetRotation = Quaternion.Euler(-90f, 0f, 0f) * _originalRotation;
+                targetRotation = Quaternion.Euler(-90f, 0f, 0f) * OriginalRotation;
 
                 break;
         }
@@ -276,10 +285,10 @@ public class ScanController : MonoBehaviour
         _isFollower = false;
     }
 
-    public void UpdateHomeState()
+    public void UpdateOriginalState()
     {
-        _originalPosition = transform.position;
-        _originalRotation = transform.localRotation;
-        _originalScale = transform.localScale;
+        OriginalPosition = transform.position;
+        OriginalRotation = transform.localRotation;
+        OriginalScale = transform.localScale;
     }
 }
