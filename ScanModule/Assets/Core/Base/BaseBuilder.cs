@@ -70,11 +70,13 @@ public class BaseBuilder : MonoBehaviour
 	private void OnEnable()
 	{
 		ScanEvents.OnAdvanceBuilderRequested += HandleAdvanceRequested;
+		ScanEvents.OnResetBuilderRequested += HandleResetBuilderRequested;
 	}
 
 	private void OnDisable()
 	{
 		ScanEvents.OnAdvanceBuilderRequested -= HandleAdvanceRequested;
+		ScanEvents.OnResetBuilderRequested -= HandleResetBuilderRequested;
 	}
 
 	private async void HandleAdvanceRequested()
@@ -91,7 +93,17 @@ public class BaseBuilder : MonoBehaviour
 		_bProcessing = false;
 	}
 
-	private async Task AdvanceStateAsync()
+    private void HandleResetBuilderRequested()
+    {
+        if (_bProcessing)
+        {
+            return;
+        }
+
+        ResetBuilderState();
+    }
+
+    private async Task AdvanceStateAsync()
 	{
 		if (currentState == BuilderState.MarkOcclusal)
 		{
@@ -519,9 +531,9 @@ public class BaseBuilder : MonoBehaviour
 
 		if (spline.transform.parent.TryGetComponent<ScanController>(out var controller))
 		{
-            controller.jawType = _bUpperJaw ? ScanController.JawType.Upper : ScanController.JawType.Lower;
+			controller.jawType = _bUpperJaw ? ScanController.JawType.Upper : ScanController.JawType.Lower;
 
-            controller.UpdateOriginalState();
+			controller.UpdateOriginalState();
 		}
 
 		spline.ClearMarks();
@@ -1253,9 +1265,9 @@ public class BaseBuilder : MonoBehaviour
 
 				if (Config.Instance.occlusalPlaneMaterial != null && _occlusalPlanePreview.TryGetComponent<MeshRenderer>(out var occlusalRenderer))
 				{
-                    occlusalRenderer.sharedMaterial = Config.Instance.occlusalPlaneMaterial;
+					occlusalRenderer.sharedMaterial = Config.Instance.occlusalPlaneMaterial;
 				}
-            }
+			}
 
 			Vector3 upAxis = CalculateUpAxis();
 
@@ -1287,8 +1299,8 @@ public class BaseBuilder : MonoBehaviour
 				if (Config.Instance.sagittalPlaneMaterial != null && _sagittalPlanePreview.TryGetComponent<MeshRenderer>(out var sagittalRenderer))
 				{
 					sagittalRenderer.sharedMaterial = Config.Instance.sagittalPlaneMaterial;
-                }
-            }
+				}
+			}
 
 			Quaternion finalRotation = CalculateRotation();
 
@@ -1333,20 +1345,20 @@ public class BaseBuilder : MonoBehaviour
 
 	private void DestroyPlanePoints()
 	{
-        foreach (GameObject mark in _occlusalMarks)
-        {
-            Destroy(mark);
-        }
+		foreach (GameObject mark in _occlusalMarks)
+		{
+			Destroy(mark);
+		}
 
-        foreach (GameObject mark in _sagittalMarks)
-        {
-            Destroy(mark);
-        }
+		foreach (GameObject mark in _sagittalMarks)
+		{
+			Destroy(mark);
+		}
 
-        _occlusalMarks.Clear();
-        _sagittalMarks.Clear();
+		_occlusalMarks.Clear();
+		_sagittalMarks.Clear();
 
-        _occlusalPoints.Clear();
-        _sagittalPoints.Clear();
-    }
+		_occlusalPoints.Clear();
+		_sagittalPoints.Clear();
+	}
 }

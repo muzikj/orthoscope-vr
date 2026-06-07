@@ -1,7 +1,5 @@
 using UnityEngine;
 
-using UnityEngine.InputSystem;
-
 [System.Serializable]
 public struct MockTransform
 {
@@ -22,55 +20,61 @@ public class DebugScanAutomator : MonoBehaviour
 		SplineLoop,
 	}
 
-	private void Update()
+	private void OnEnable()
 	{
-		if (Keyboard.current == null) return;
+		ScanEvents.OnInjectDebugDataRequested += HandleInjectDebugDataRequested;
+	}
 
-		if (Keyboard.current.uKey.wasPressedThisFrame)
+	private void OnDisable()
+	{
+		ScanEvents.OnInjectDebugDataRequested -= HandleInjectDebugDataRequested;
+	}
+
+	private void HandleInjectDebugDataRequested()
+	{
+		if (BaseBuilder.Instance == null)
 		{
-			if (BaseBuilder.Instance == null)
-			{
-				Debug.LogError($"[DebugAutomator] Cannot inject! BaseBuilder.Instance is missing from the scene.");
+			Debug.LogError($"[DebugAutomator] Cannot inject! BaseBuilder.Instance is missing from the scene.");
 
-				return;
+			return;
+		}
+
+		switch (BaseBuilder.Instance.currentState)
+		{
+			case BaseBuilder.BuilderState.MarkOcclusal:
+			{
+				InjectMockData(mockOcclusalPoints, "Occlusal", TargetSystem.BaseBuilder, BaseBuilder.BuilderState.MarkOcclusal);
+
+				break;
 			}
 
-			switch (BaseBuilder.Instance.currentState)
+			case BaseBuilder.BuilderState.MarkSagittal:
 			{
-				case BaseBuilder.BuilderState.MarkOcclusal:
-				{
-					InjectMockData(mockOcclusalPoints, "Occlusal", TargetSystem.BaseBuilder, BaseBuilder.BuilderState.MarkOcclusal);
+				InjectMockData(mockSagittalPoints, "Sagittal", TargetSystem.BaseBuilder, BaseBuilder.BuilderState.MarkSagittal);
 
-					break;
-				}
+				break;
+			}
 
-				case BaseBuilder.BuilderState.MarkSagittal:
-				{
-					InjectMockData(mockSagittalPoints, "Sagittal", TargetSystem.BaseBuilder, BaseBuilder.BuilderState.MarkSagittal);
+			case BaseBuilder.BuilderState.MarkUpperGums:
+			{
+				InjectMockData(mockUpperSpline, "Upper Gum Spline", TargetSystem.SplineLoop, BaseBuilder.BuilderState.MarkUpperGums);
 
-					break;
-				}
+				break;
+			}
 
-				case BaseBuilder.BuilderState.MarkUpperGums:
-				{
-					InjectMockData(mockUpperSpline, "Upper Gum Spline", TargetSystem.SplineLoop, BaseBuilder.BuilderState.MarkUpperGums);
+			case BaseBuilder.BuilderState.MarkLowerGums:
+			{
+				InjectMockData(mockLowerSpline, "Lower Gum Spline", TargetSystem.SplineLoop, BaseBuilder.BuilderState.MarkLowerGums);
 
-					break;
-				}
+				break;
 
-				case BaseBuilder.BuilderState.MarkLowerGums:
-				{
-					InjectMockData(mockLowerSpline, "Lower Gum Spline", TargetSystem.SplineLoop, BaseBuilder.BuilderState.MarkLowerGums);
+			}
 
-					break;
+			default:
+			{
+				Debug.LogWarning($"[DebugAutomator] BaseBuilder is in state {BaseBuilder.Instance.currentState}, which is not set up for injection!");
 
-				}
-
-				default:
-				{
-					Debug.LogWarning($"[DebugAutomator] BaseBuilder is in state {BaseBuilder.Instance.currentState}, which is not set up for injection!");
-					break;
-				}
+				break;
 			}
 		}
 	}

@@ -3,64 +3,72 @@ using UnityEngine;
 
 public enum OrthoView
 {
-    Front,
-    Back,
-    Left,
-    Right,
-    Top,
-    Bottom
+	Front,
+	Back,
+	Left,
+	Right,
+	Top,
+	Bottom
 }
 
 public class ScanEvents // TODO: add sound effects
 {
-    // importing .stl scans
-    public static event Action<string> OnImportScanRequested;
-    public static event Action<bool> OnImportScanCompleted;
+	// importing .stl scans
+	public static event Action<string> OnImportScanRequested;
+	public static event Action<bool> OnImportScanCompleted;
 
-    public static void RequestImportScan(string path) => OnImportScanRequested?.Invoke(path);
-    public static void NotifyImportScanCompleted(bool success) => OnImportScanCompleted?.Invoke(success);
+	public static void RequestImportScan(string path) => OnImportScanRequested?.Invoke(path);
+	public static void NotifyImportScanCompleted(bool success) => OnImportScanCompleted?.Invoke(success);
 
-    // selecting scans
-    public static event Action<GameObject> OnScanSelected;
-    public static event Action<GameObject> OnScanDeselected;
+	// selecting scans
+	public static event Action<GameObject> OnScanSelected;
+	public static event Action<GameObject> OnScanDeselected;
 
-    public static void NotifyScanSelected(GameObject scan) => OnScanSelected?.Invoke(scan);
-    public static void NotifyScanDeselected(GameObject scan) => OnScanDeselected?.Invoke(scan);
-    
-    // deleting selected scans
-    public static event Action OnResetRequested;
-    public static void RequestResetScan() => OnResetRequested?.Invoke();
+	public static void NotifyScanSelected(GameObject scan) => OnScanSelected?.Invoke(scan);
+	public static void NotifyScanDeselected(GameObject scan) => OnScanDeselected?.Invoke(scan);
+	
+	// deleting selected scans
+	public static event Action OnResetRequested;
+	public static void RequestResetScan() => OnResetRequested?.Invoke();
 
-    // resetting selected scans
-    public static event Action OnDeleteRequested;
-    public static void RequestDeleteScan() => OnDeleteRequested?.Invoke();
+	// resetting selected scans
+	public static event Action OnDeleteRequested;
+	public static void RequestDeleteScan() => OnDeleteRequested?.Invoke();
 
-    // scaling selected scans
-    public static event Action<float> OnScaleRequested;
-    public static void RequestScaleScan(float scaleFactor) => OnScaleRequested?.Invoke(scaleFactor);
+	// scaling selected scans
+	public static event Action<float> OnScaleRequested;
+	public static void RequestScaleScan(float scaleFactor) => OnScaleRequested?.Invoke(scaleFactor);
 
-    // advancing the base builder
-    public static event Action OnAdvanceBuilderRequested;
-    public static void RequestAdvanceBuilder() => OnAdvanceBuilderRequested?.Invoke();
+	// advancing the base builder
+	public static event Action OnAdvanceBuilderRequested;
+	public static void RequestAdvanceBuilder() => OnAdvanceBuilderRequested?.Invoke();
 
-    // logging messages to the UI banner
-    public static event Action<string> OnUIMessageRequested;
-    public static void RequestUIMessage(string message) => OnUIMessageRequested?.Invoke(message);
+	// resetting the base builder
+	public static event Action OnResetBuilderRequested;
+	public static void RequestResetBuilder() => OnResetBuilderRequested?.Invoke();
 
-    // rotating selected scans to orthographic views
-    public static event Action<OrthoView> OnSnapViewRequested;
-    public static void RequestSnapView(OrthoView view) => OnSnapViewRequested?.Invoke(view);
+	// logging messages to the UI banner
+	public static event Action<string> OnUIMessageRequested;
+	public static void RequestUIMessage(string message) => OnUIMessageRequested?.Invoke(message);
 
-    // aligning finished bases
-    public static event Action OnAlignBasesRequested;
-    public static void RequestAlignBases() => OnAlignBasesRequested?.Invoke();
+	// rotating selected scans to orthographic views
+	public static event Action<OrthoView> OnSnapViewRequested;
+	public static void RequestSnapView(OrthoView view) => OnSnapViewRequested?.Invoke(view);
 
-    // multi-grabbing movement
-    public static event Action<Transform> OnGroupGrabStarted;
-    public static event Action<Transform> OnGroupMoved;
-    public static event Action OnGroupGrabEnded;
+	// aligning finished bases
+	public static event Action OnAlignBasesRequested;
+	public static void RequestAlignBases() => OnAlignBasesRequested?.Invoke();
 
-    public static void RequestGroupGrabStart(Transform leaderTransform) => OnGroupGrabStarted?.Invoke(leaderTransform);
-    public static void RequestGroupMove(Transform leaderTransform) => OnGroupMoved?.Invoke(leaderTransform);
-    public static void RequestGroupGrabEnd() => OnGroupGrabEnded?.Invoke();
+	// multi-grabbing movement
+	public static event Action<Transform> OnGroupGrabStarted;
+	public static event Action<Transform> OnGroupMoved;
+	public static event Action OnGroupGrabEnded;
+
+	public static void RequestGroupGrabStart(Transform leaderTransform) => OnGroupGrabStarted?.Invoke(leaderTransform);
+	public static void RequestGroupMove(Transform leaderTransform) => OnGroupMoved?.Invoke(leaderTransform);
+	public static void RequestGroupGrabEnd() => OnGroupGrabEnded?.Invoke();
+
+	// injecting debug data
+	public static event Action OnInjectDebugDataRequested;
+	public static void RequestInjectDebugData() => OnInjectDebugDataRequested?.Invoke();
 }

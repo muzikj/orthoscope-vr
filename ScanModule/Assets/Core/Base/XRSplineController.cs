@@ -3,9 +3,11 @@ using UnityEngine.InputSystem;
 
 public class XRSplineController : MonoBehaviour
 {
-    [Header("VR Controller Dependencies")]
-    [Tooltip("Transform for correct XR pointing.")]
-    public Transform pointerOrigin;
+    [Tooltip("Transform for correct XR pointing when using physical controllers.")]
+    public Transform controllerPointerOrigin;
+    [Tooltip("Transform for correct XR pointing when using hand controllers.")]
+    public Transform handPointerOrigin;
+
     [Tooltip("InputAction for triggering marker placement.")]
     public InputActionReference triggerAction;
     [Tooltip("InputAction for undoing the last marker.")]
@@ -17,6 +19,24 @@ public class XRSplineController : MonoBehaviour
     private ScanSpline _currentSpline;
 
     private bool IsMarkingPlanes => BaseBuilder.Instance != null && (BaseBuilder.Instance.currentState == BaseBuilder.BuilderState.MarkOcclusal || BaseBuilder.Instance.currentState == BaseBuilder.BuilderState.MarkSagittal);
+
+    private Transform ActivePointerOrigin
+    {
+        get
+        {
+            if (controllerPointerOrigin != null && controllerPointerOrigin.gameObject.activeInHierarchy)
+            {
+                return controllerPointerOrigin;
+            }
+
+            if (handPointerOrigin != null && handPointerOrigin.gameObject.activeInHierarchy)
+            {
+                return handPointerOrigin;
+            }
+
+            return null;
+        }
+    }
 
     private void Awake()
     {
@@ -67,9 +87,14 @@ public class XRSplineController : MonoBehaviour
 
     private void Update()
     {
-        if (pointerOrigin == null || _ghostMark == null || _closingGhostMark == null) return;
+        Transform currentOrigin = ActivePointerOrigin;
 
-        if (Physics.Raycast(pointerOrigin.position, pointerOrigin.forward, out RaycastHit hit, Config.Instance.raycastMaxDistance, Config.Instance.scanRaycastLayer))
+        if (currentOrigin == null || _ghostMark == null || _closingGhostMark == null)
+        {
+            return;
+        }
+
+        if (Physics.Raycast(currentOrigin.position, currentOrigin.forward, out RaycastHit hit, Config.Instance.raycastMaxDistance, Config.Instance.scanRaycastLayer))
         {
             // we have hit the correct layer, which is a mere helper child object of the Scan, so we need to get the parent who controls it and then fetch the ScanSpline component on one of its children
             _currentSpline = hit.collider.transform.parent.GetComponentInChildren<ScanSpline>();

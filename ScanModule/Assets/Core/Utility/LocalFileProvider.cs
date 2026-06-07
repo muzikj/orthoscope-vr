@@ -17,22 +17,55 @@ public enum FileFormat
 
 public class LocalFileProvider : MonoBehaviour
 {
-    [Header("Source Settings")]
-    [SerializeField] private string _directoryPath = @"C:\Users\Martin\Desktop\FBMI\projekt2";
+    [Tooltip("Directory to scan for files, e.g. TestData in the ScanModule project folder.")]
+    [SerializeField] private string _directory = "TestData";
+
+    private string GetScanDirectory()
+    {
+        string path = Application.persistentDataPath;
+
+#if UNITY_EDITOR || UNITY_STANDALONE_WIN
+
+        path = Path.GetFullPath(Path.Combine(Application.dataPath, "../", _directory));
+
+        if (!Directory.Exists(path))
+        {
+            Directory.CreateDirectory(path);
+
+            Debug.Log($"[LocalFileProvider] Created PC/Win directory at: {path}!");
+        }
+
+#elif UNITY_ANDROID
+
+        path = Path.Combine(Application.persistentDataPath, _directory);
+
+        if (!Directory.Exists(path))
+        {
+            Directory.CreateDirectory(path);
+
+            Debug.Log($"[LocalFileProvider] Created VR/Android directory at: {path}!");
+        }
+
+#endif
+
+        return path;
+    }
 
     public List<FileMeta> GetAvailableFiles(FileFormat fileFormat)
     {
+        string targetDirectory = GetScanDirectory();
+
         List<FileMeta> availableFiles = new();
 
-        if (!Directory.Exists(_directoryPath))
+        if (!Directory.Exists(targetDirectory))
         {
-            Debug.Log($"Scan Directory {_directoryPath} does NOT exist!");
+            Debug.Log($"Scan Directory {targetDirectory} does NOT exist!");
             
             return availableFiles;
         }
 
         string searchPattern = fileFormat.GetSearchPattern();
-        string[] files = Directory.GetFiles(_directoryPath, searchPattern);
+        string[] files = Directory.GetFiles(targetDirectory, searchPattern);
 
         foreach (string file in files)
         {
