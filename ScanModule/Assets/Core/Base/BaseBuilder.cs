@@ -1015,7 +1015,7 @@ public class BaseBuilder : MonoBehaviour
 		}
 
 		// chop the edges into hundreds of tiny segments for the wavy wall
-		Vector2[] denseAboPolygon = DensifyPolygon(aboPolygon, 0.5f); // TODO: put into the Config
+		Vector2[] denseAboPolygon = DensifyPolygon(aboPolygon, Config.Instance.densificationDistance);
 		List<Vector2> outerBound = new(denseAboPolygon);
 
 		// generate flat meshes via Constrained Delaunay Triangulation
@@ -1223,8 +1223,10 @@ public class BaseBuilder : MonoBehaviour
 			}
 		}
 
-		return bestDist < 1e-5f ? bestIdx : -1;
-	}
+		float distanceThreshold = Config.Instance.densificationDistance * Config.Instance.exactIndexEdgeRatioThreshold;
+
+        return bestDist < distanceThreshold ? bestIdx : -1;
+    }
 
 	// a forgiving index search, which prevents wall stitching failures
 	private int FindClosestIndex(Vector2[] array, Vector2 target)

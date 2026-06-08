@@ -70,6 +70,10 @@ public class Config : MonoBehaviour
     public int smoothingPasses = 8;
     [Tooltip("The blur radius, i.e. how wide a net we cast to average points (a value of X translates to 2X + 1 points).")]
     public int smoothingWindowSize = 3;
+    [Tooltip("Distance between points when densifying the curve (in meters).")]
+    public float densificationDistance = 0.5f;
+    [Tooltip("The threshold for the ratio between the exact index edge length and the distance between the points to consider an edge as an exact index edge.")]
+    public float exactIndexEdgeRatioThreshold = 0.09f;
 
     private void Awake()
     {
