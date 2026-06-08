@@ -1,18 +1,20 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public struct MockTransform
+public struct DebugMockSet
 {
-	public Vector3 localPosition;
-	public Vector3 localEulerAngles;
+	[Tooltip("Parent object for the planes. Children 0-2 = Occlusal, Children 3-4 = Sagittal")]
+	public Transform planarGroup;
+	[Tooltip("Parent object for the upper spline points.")]
+	public Transform upperSplineGroup;
+	[Tooltip("Parent object for the lower spline points.")]
+	public Transform lowerSplineGroup;
 }
 
 public class DebugScanAutomator : MonoBehaviour
 {
-	public MockTransform[] mockOcclusalPoints = new MockTransform[3];
-	public MockTransform[] mockSagittalPoints = new MockTransform[2];
-	public MockTransform[] mockUpperSpline = new MockTransform[4];
-	public MockTransform[] mockLowerSpline = new MockTransform[4];
+	public List<DebugMockSet> debugSets = new();
 
 	private enum TargetSystem
 	{
@@ -30,7 +32,7 @@ public class DebugScanAutomator : MonoBehaviour
 		ScanEvents.OnInjectDebugDataRequested -= HandleInjectDebugDataRequested;
 	}
 
-	private void HandleInjectDebugDataRequested()
+	private void HandleInjectDebugDataRequested(int setIndex)
 	{
 		if (BaseBuilder.Instance == null)
 		{
@@ -39,35 +41,47 @@ public class DebugScanAutomator : MonoBehaviour
 			return;
 		}
 
+		if (setIndex < 0 || setIndex >= debugSets.Count)
+		{
+			Debug.LogError($"[DebugAutomator] Requested Set Index {setIndex} is out of bounds!");
+
+			return;
+		}
+
+		DebugMockSet currentSet = debugSets[setIndex];
+
 		switch (BaseBuilder.Instance.currentState)
 		{
 			case BaseBuilder.BuilderState.MarkOcclusal:
 			{
-				InjectMockData(mockOcclusalPoints, "Occlusal", TargetSystem.BaseBuilder, BaseBuilder.BuilderState.MarkOcclusal);
+				List<Transform> occlusalPoints = ExtractPlanarPoints(currentSet.planarGroup, 0, 3);
+				InjectMockData(occlusalPoints, "Occlusal", TargetSystem.BaseBuilder, BaseBuilder.BuilderState.MarkOcclusal);
 
 				break;
 			}
 
 			case BaseBuilder.BuilderState.MarkSagittal:
 			{
-				InjectMockData(mockSagittalPoints, "Sagittal", TargetSystem.BaseBuilder, BaseBuilder.BuilderState.MarkSagittal);
+				List<Transform> sagittalPoints = ExtractPlanarPoints(currentSet.planarGroup, 3, 2);
+				InjectMockData(sagittalPoints, "Sagittal", TargetSystem.BaseBuilder, BaseBuilder.BuilderState.MarkSagittal);
 
 				break;
 			}
 
 			case BaseBuilder.BuilderState.MarkUpperGums:
 			{
-				InjectMockData(mockUpperSpline, "Upper Gum Spline", TargetSystem.SplineLoop, BaseBuilder.BuilderState.MarkUpperGums);
+				List<Transform> upperSpline = ExtractSplinePoints(currentSet.upperSplineGroup);
+				InjectMockData(upperSpline, "Upper Gum Spline", TargetSystem.SplineLoop, BaseBuilder.BuilderState.MarkUpperGums);
 
 				break;
 			}
 
 			case BaseBuilder.BuilderState.MarkLowerGums:
 			{
-				InjectMockData(mockLowerSpline, "Lower Gum Spline", TargetSystem.SplineLoop, BaseBuilder.BuilderState.MarkLowerGums);
+				List<Transform> lowerSpline = ExtractSplinePoints(currentSet.lowerSplineGroup);
+				InjectMockData(lowerSpline, "Lower Gum Spline", TargetSystem.SplineLoop, BaseBuilder.BuilderState.MarkLowerGums);
 
 				break;
-
 			}
 
 			default:
@@ -79,9 +93,63 @@ public class DebugScanAutomator : MonoBehaviour
 		}
 	}
 
-	private void InjectMockData(MockTransform[] mockPoints, string debugName, TargetSystem target, BaseBuilder.BuilderState state)
+	private List<Transform> ExtractPlanarPoints(Transform parentGroup, int startIndex, int count)
 	{
-		if (mockPoints == null || mockPoints.Length == 0)
+		List<Transform> points = new();
+
+		if (parentGroup == null)
+		{
+			Debug.LogWarning("[DebugAutomator] Planar Group is not assigned in the requested Debug Set.");
+
+			return points;
+		}
+
+		if (parentGroup.childCount < startIndex + count)
+		{
+			Debug.LogWarning($"[DebugAutomator] Planar Group '{parentGroup.name}' does not have enough children! Expected at least {startIndex + count}, found {parentGroup.childCount}.");
+
+			return points;
+		}
+
+		for (int i = startIndex; i < startIndex + count; i++)
+		{
+			points.Add(parentGroup.GetChild(i));
+		}
+
+		return points;
+	}
+
+	private List<Transform> ExtractSplinePoints(Transform parentGroup)
+	{
+		List<Transform> points = new();
+
+		if (parentGroup == null)
+		{
+			Debug.LogWarning("[DebugAutomator] Spline Group is not assigned in the requested Debug Set.");
+
+			return points;
+		}
+
+		if (parentGroup.childCount < 3)
+		{
+			Debug.LogWarning($"[DebugAutomator] Spline Group '{parentGroup.name}' does not have enough children for a loop! Expected at least {3}, found {parentGroup.childCount}.");
+
+			return points;
+		}
+
+		for (int i = 0; i < parentGroup.childCount; i++)
+		{
+			points.Add(parentGroup.GetChild(i));
+		}
+
+		points.Add(parentGroup.GetChild(0));
+
+		return points;
+	}
+
+	private void InjectMockData(List<Transform> mockPoints, string debugName, TargetSystem target, BaseBuilder.BuilderState state)
+	{
+		if (mockPoints == null || mockPoints.Count == 0)
 		{
 			return;
 		}

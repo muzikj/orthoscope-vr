@@ -93,17 +93,17 @@ public class BaseBuilder : MonoBehaviour
 		_bProcessing = false;
 	}
 
-    private void HandleResetBuilderRequested()
-    {
-        if (_bProcessing)
-        {
-            return;
-        }
+	private void HandleResetBuilderRequested()
+	{
+		if (_bProcessing)
+		{
+			return;
+		}
 
-        ResetBuilderState();
-    }
+		ResetBuilderState();
+	}
 
-    private async Task AdvanceStateAsync()
+	private async Task AdvanceStateAsync()
 	{
 		if (currentState == BuilderState.MarkOcclusal)
 		{
@@ -166,7 +166,7 @@ public class BaseBuilder : MonoBehaviour
 			await TrimmingAndBasePipelineAsync(upperSpline);
 
 			_bUpperJaw = false;
-			
+
 			currentState = BuilderState.MarkLowerGums;
 			ScanEvents.RequestUIMessage("Success!\nUpper Base Complete!\nMoving onto the Lower Gum Splines.");
 		}
@@ -313,16 +313,19 @@ public class BaseBuilder : MonoBehaviour
 			}
 		}
 
-		// test, which direction on the skirt loop keeps us closer to the scan loop
-		int testNextScan = (bestScanIdx + 1) % scanRimPts.Count;
-		int testNextSkirtFwd = (bestSkirtIdx + 1) % localSkirtPoints.Count;
-		int testNextSkirtRev = (bestSkirtIdx - 1 + localSkirtPoints.Count) % localSkirtPoints.Count;
+        // step ahead by 5% of the total loops to escape microscopic mesh noise
+        int scanStride = Mathf.Max(1, scanRimPts.Count / 20);
+		int skirtStride = Mathf.Max(1, localSkirtPoints.Count / 20);
+
+		int testNextScan = (bestScanIdx + scanStride) % scanRimPts.Count;
+		int testNextSkirtFwd = (bestSkirtIdx + skirtStride) % localSkirtPoints.Count;
+		int testNextSkirtRev = (bestSkirtIdx - skirtStride + localSkirtPoints.Count) % localSkirtPoints.Count;
 
 		float distFwd = (scanRimPts[testNextScan] - localSkirtPoints[testNextSkirtFwd]).sqrMagnitude;
 		float distRev = (scanRimPts[testNextScan] - localSkirtPoints[testNextSkirtRev]).sqrMagnitude;
 
-		// if stepping backwards is a shorter distance, arrays are crossing, so will reverse them so they are running in parallel
-		if (distRev < distFwd)
+        // if stepping backwards is a shorter distance, arrays are crossing, so will reverse them so they are running in parallel
+        if (distRev < distFwd)
 		{
 			localSkirtPoints.Reverse();
 			bestSkirtIdx = (localSkirtPoints.Count - 1) - bestSkirtIdx; // reversing completely flips the optimal starting point
@@ -422,43 +425,74 @@ public class BaseBuilder : MonoBehaviour
 			}
 		}
 
-		// isolate the boundary (if an edge is not shared by any other triangles, i.e. Count == 1, it is exposed)
-		Dictionary<int, int> boundaryLinks = new Dictionary<int, int>();
+		// isolate the boundary (if an edge is not shared by any other triangles, it is exposed)
+		Dictionary<int, List<int>> boundaryLinks = new();
 		foreach (var kvp in edgeCounts)
 		{
 			if (kvp.Value == 1)
 			{
 				var (from, to) = directedEdgeMap[kvp.Key];
-				boundaryLinks[from] = to;
+
+				if (!boundaryLinks.ContainsKey(from))
+				{
+					boundaryLinks[from] = new List<int>();
+				}
+
+				boundaryLinks[from].Add(to);
 			}
 		}
 
 		// chain edges into continuous loops
 		List<List<int>> loops = new();
-		HashSet<int> visited = new();
+		HashSet<int> visitedEdges = new();
 
 		foreach (int startNode in boundaryLinks.Keys)
 		{
-			if (visited.Contains(startNode)) continue;
-
-			List<int> currentLoop = new List<int>();
-			int curr = startNode;
-
-			while (!visited.Contains(curr))
+			// try starting a new loop from each available outgoing edge
+			foreach (int initialNextNode in boundaryLinks[startNode])
 			{
-				visited.Add(curr);
-				currentLoop.Add(curr);
+				// unique hash for the directed edge to ensure we don't walk the same path twice
+				int initialEdgeHash = (startNode * 397) ^ initialNextNode;
+				if (visitedEdges.Contains(initialEdgeHash)) continue;
 
-				if (boundaryLinks.TryGetValue(curr, out int nextNode))
+				List<int> currentLoop = new();
+				int curr = startNode;
+				int next = initialNextNode;
+
+				while (true)
 				{
-					curr = nextNode;
+					int edgeHash = (curr * 397) ^ next;
+					if (visitedEdges.Contains(edgeHash)) break; // we have closed the loop
+
+					visitedEdges.Add(edgeHash);
+					currentLoop.Add(curr);
+
+					curr = next;
+
+					// find the next unvisited outgoing edge from the current node
+					bool foundNext = false;
+					if (boundaryLinks.TryGetValue(curr, out List<int> nextNodes))
+					{
+						foreach (int potentialNext in nextNodes)
+						{
+							int nextEdgeHash = (curr * 397) ^ potentialNext;
+							if (!visitedEdges.Contains(nextEdgeHash))
+							{
+								next = potentialNext;
+								foundNext = true;
+								break; // take the first untraversed path
+							}
+						}
+					}
+
+					if (!foundNext) break; // dead end
 				}
-				else
+
+				if (currentLoop.Count > 0)
 				{
-					break;
+					loops.Add(currentLoop);
 				}
 			}
-			loops.Add(currentLoop);
 		}
 
 		// we are only interested in the longest loop, which should be the jaw cut loop, thus ignoring any micro-holes in teeth topology
@@ -565,6 +599,8 @@ public class BaseBuilder : MonoBehaviour
 		{
 			return ProcessMeshTrimmingAndBFS(rawVerts, rawTris, rawColors, localTubePoints, hasColors);
 		});
+
+		Debug.Log($"Original Verts: {rawVerts.Length} | Trimmed Verts: {cleanedVerts.Length}");
 
 		scanMesh.Clear();
 		scanMesh.vertices = cleanedVerts;
@@ -833,7 +869,7 @@ public class BaseBuilder : MonoBehaviour
 		foreach (GameObject mark in marks)
 		{
 			if (mark.TryGetComponent<MeshRenderer>(out var renderer) || mark.GetComponentInChildren<MeshRenderer>() is MeshRenderer childRenderer && (renderer = childRenderer) != null)
-			{ 
+			{
 				renderer.sharedMaterial = material;
 			}
 		}
@@ -1180,7 +1216,7 @@ public class BaseBuilder : MonoBehaviour
 		{
 			float d = Vector2.SqrMagnitude(array[i] - target);
 
-			if (d < bestDist) 
+			if (d < bestDist)
 			{
 				bestDist = d;
 				bestIdx = i;

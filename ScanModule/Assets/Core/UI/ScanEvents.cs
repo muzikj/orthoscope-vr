@@ -69,6 +69,6 @@ public class ScanEvents // TODO: add sound effects
 	public static void RequestGroupGrabEnd() => OnGroupGrabEnded?.Invoke();
 
 	// injecting debug data
-	public static event Action OnInjectDebugDataRequested;
-	public static void RequestInjectDebugData() => OnInjectDebugDataRequested?.Invoke();
+	public static event Action<int> OnInjectDebugDataRequested;
+	public static void RequestInjectDebugData(int setIndex = 0) => OnInjectDebugDataRequested?.Invoke(setIndex);
 }

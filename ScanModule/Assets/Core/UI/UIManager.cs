@@ -165,7 +165,7 @@ public class UIManager : MonoBehaviour
 
 	public void ClickAlignBases() => ScanEvents.RequestAlignBases();
 
-	public void ClickInjectDebugData() => ScanEvents.RequestInjectDebugData();
+	public void ClickInjectDebugData(int setIndex) => ScanEvents.RequestInjectDebugData(setIndex);
 
 	private void HandleUIMessageRequested(string message)
 	{
