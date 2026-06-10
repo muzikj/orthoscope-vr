@@ -1,0 +1,58 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\domin\\Desktop\\Projekt 4\\My project (1)\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{E1CE1FEE-67BE-6533-73AA-CC578BE80DCD}|Assembly-CSharp.csproj|c:\\users\\domin\\desktop\\projekt 4\\my project (1)\\assets\\sagittalpoints.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E1CE1FEE-67BE-6533-73AA-CC578BE80DCD}|Assembly-CSharp.csproj|solutionrelative:assets\\sagittalpoints.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{E1CE1FEE-67BE-6533-73AA-CC578BE80DCD}|Assembly-CSharp.csproj|c:\\users\\domin\\desktop\\projekt 4\\my project (1)\\assets\\staticfacelandmarker.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{E1CE1FEE-67BE-6533-73AA-CC578BE80DCD}|Assembly-CSharp.csproj|solutionrelative:assets\\staticfacelandmarker.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "SagittalPoints.cs",
+              "DocumentMoniker": "C:\\Users\\domin\\Desktop\\Projekt 4\\My project (1)\\Assets\\SagittalPoints.cs",
+              "RelativeDocumentMoniker": "Assets\\SagittalPoints.cs",
+              "ToolTip": "C:\\Users\\domin\\Desktop\\Projekt 4\\My project (1)\\Assets\\SagittalPoints.cs",
+              "RelativeToolTip": "Assets\\SagittalPoints.cs",
+              "ViewState": "AgIAAL8AAAAAAAAAAAAgwNAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-10T16:20:13.789Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "StaticFaceLandmarker.cs",
+              "DocumentMoniker": "C:\\Users\\domin\\Desktop\\Projekt 4\\My project (1)\\Assets\\StaticFaceLandmarker.cs",
+              "RelativeDocumentMoniker": "Assets\\StaticFaceLandmarker.cs",
+              "ToolTip": "C:\\Users\\domin\\Desktop\\Projekt 4\\My project (1)\\Assets\\StaticFaceLandmarker.cs",
+              "RelativeToolTip": "Assets\\StaticFaceLandmarker.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAmAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-10T15:27:58.462Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
