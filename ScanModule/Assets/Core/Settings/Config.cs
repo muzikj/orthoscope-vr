@@ -72,14 +72,13 @@ public class Config : MonoBehaviour
     public int smoothingWindowSize = 3;
     [Tooltip("Distance between points when densifying the curve (in meters).")]
     public float densificationDistance = 0.5f;
-    [Tooltip("The threshold for the ratio between the exact index edge length and the distance between the points to consider an edge as an exact index edge.")]
-    public float exactIndexEdgeRatioThreshold = 0.09f;
 
     private void Awake()
     {
         if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
+
             return;
         }
 

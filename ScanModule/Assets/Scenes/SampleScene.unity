@@ -173,7 +173,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6598815579406187037, guid: 18ddb545287c546e19cc77dc9fbb2189, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -11814,11 +11814,11 @@ MonoBehaviour:
     upperSplineGroup: {fileID: 3177175466719704815, guid: 1bade6cf27d31604d8cab8df3ebe4b2c, type: 3}
     lowerSplineGroup: {fileID: 8740819132204634938, guid: 311d7502eeab9d249a5aa6e58bf276a6, type: 3}
   - planarGroup: {fileID: 609737335784049732, guid: 9fc657ed14f9c5848813c2520094ea00, type: 3}
-    upperSplineGroup: {fileID: 3784483515585255501, guid: 76575c6a01a0e4542810f2eb79475d2d, type: 3}
+    upperSplineGroup: {fileID: 3833944046703626326, guid: 161100073b3e1c54b87fb2c2af05f848, type: 3}
     lowerSplineGroup: {fileID: 59895326172302949, guid: b1740db44fa5d3740aae7a0058d08d2f, type: 3}
-  - planarGroup: {fileID: 0}
-    upperSplineGroup: {fileID: 0}
-    lowerSplineGroup: {fileID: 0}
+  - planarGroup: {fileID: 2348618745249145896, guid: caa0ae34648ef2140a7c4e9aeb4911e1, type: 3}
+    upperSplineGroup: {fileID: 8574337903340365287, guid: 367f80ef54c264a47bf964cae7d0bfe5, type: 3}
+    lowerSplineGroup: {fileID: 7204345261343526816, guid: ccb10b40d4be54849bdb2ac7b151fc75, type: 3}
 --- !u!4 &975174882
 Transform:
   m_ObjectHideFlags: 0
@@ -23866,6 +23866,7 @@ MonoBehaviour:
   minDistance: 0.003
   smoothingPasses: 8
   smoothingWindowSize: 3
+  densificationDistance: 0.5
 --- !u!114 &2129132400
 MonoBehaviour:
   m_ObjectHideFlags: 0

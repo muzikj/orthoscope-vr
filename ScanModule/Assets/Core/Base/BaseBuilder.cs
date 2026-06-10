@@ -951,67 +951,92 @@ public class BaseBuilder : MonoBehaviour
 		float midY = settings.isUpperJaw ? (lowestY - settings.skirtDepth) : (highestY + settings.skirtDepth);
 		float topY = settings.isUpperJaw ? (midY - settings.baseHeight) : (midY + settings.baseHeight);
 
-		// apply padding
-		minX -= settings.widePadding;
-		maxX += settings.widePadding;
-
-		minZ -= settings.widePadding;
-		maxZ += settings.widePadding;
-
-		// master footprint synchronization
-		if (settings.isUpperJaw)
-		{
-			_masterMinX = minX;
-			_masterMaxX = maxX;
-			_masterMinZ = minZ;
-			_masterMaxZ = maxZ;
-		}
-		else
-		{
-			// the lower jaw must match the upper jaw's footprint, so as to interlock
-			minX = _masterMinX;
-			maxX = _masterMaxX;
-			minZ = _masterMinZ;
-			maxZ = _masterMaxZ;
-		}
-
-		// dynamic ABO shape
+		// ABO base proportions on unpadded true dimensions
 		float W = maxX - minX;
 		float D = maxZ - minZ;
 		float MidX = (minX + maxX) / 2f;
 
-		// standard ABO proportion ratios
-		float canineZ = maxZ - (D * 0.35f);  // canines taper in 35% from the front
-		float heelZ = minZ + (D * 0.15f);    // heel cut is 15% deep
-		float heelInsetX = W * 0.15f;        // heel cut is 15% wide
-		float lowerFrontInsetX = W * 0.12f;  // lower jaw flat front width
+		float canineZ = maxZ - (D * 0.35f);	// canines taper in 35% from the front
+		float heelZ = minZ + (D * 0.15f);	// heel cut is 15% deep
+		float heelInsetX = W * 0.15f;		// heel cut is 15% wide
+		float lowerFrontInsetX = W * 0.12f;	// lower jaw flat front width
 
-		Vector2[] aboPolygon;
+		// dynamic dilation
+		float dynamicInflation = 0f;
+		Vector2[] aboPolygon = null;
 
-		if (settings.isUpperJaw)
+		bool isSafe = false;
+
+		int safetyCounter = 0;
+		int maxExpansions = 50;
+
+		float totalBackPadding = settings.widePadding * 2f;
+
+		while (!isSafe && safetyCounter < maxExpansions)
 		{
-			aboPolygon = new Vector2[7];
+			// lock the back wall to the static padding so heels remain perfectly flush
+			float pMinZ = minZ - totalBackPadding;
+			float pHeelZ = heelZ - totalBackPadding;
 
-			aboPolygon[0] = new Vector2(minX + heelInsetX, minZ); // Back Left
-			aboPolygon[1] = new Vector2(minX, heelZ);             // Side Back Left
-			aboPolygon[2] = new Vector2(minX, canineZ);           // Canine Left
-			aboPolygon[3] = new Vector2(MidX, maxZ);              // Front Point
-			aboPolygon[4] = new Vector2(maxX, canineZ);           // Canine Right
-			aboPolygon[5] = new Vector2(maxX, heelZ);             // Side Back Right
-			aboPolygon[6] = new Vector2(maxX - heelInsetX, minZ); // Back Right
+			// dynamically inflate the sides and the front
+			float pMinX = minX - (settings.widePadding + dynamicInflation);
+			float pMaxX = maxX + (settings.widePadding + dynamicInflation);
+			float pMaxZ = maxZ + (settings.widePadding + dynamicInflation);
+			float pCanineZ = canineZ + (settings.widePadding + dynamicInflation);
+
+			// master footprint synchronization
+			if (settings.isUpperJaw)
+			{
+				_masterMinX = pMinX;
+				_masterMaxX = pMaxX;
+				_masterMinZ = pMinZ;
+				_masterMaxZ = pMaxZ;
+			}
+			else
+			{
+				pMinZ = _masterMinZ; // only lock the Z (back)
+			}
+
+			// build candidate polygon
+			if (settings.isUpperJaw)
+			{
+				aboPolygon = new Vector2[7];
+
+				aboPolygon[0] = new Vector2(pMinX + heelInsetX, pMinZ);	// Back Left
+				aboPolygon[1] = new Vector2(pMinX, pHeelZ);				// Side Back Left
+				aboPolygon[2] = new Vector2(pMinX, pCanineZ);			// Canine Left
+				aboPolygon[3] = new Vector2(MidX, pMaxZ);				// Front Point
+				aboPolygon[4] = new Vector2(pMaxX, pCanineZ);			// Canine Right
+				aboPolygon[5] = new Vector2(pMaxX, pHeelZ);				// Side Back Right
+				aboPolygon[6] = new Vector2(pMaxX - heelInsetX, pMinZ);	// Back Right
+			}
+			else
+			{
+				aboPolygon = new Vector2[8];
+
+				aboPolygon[0] = new Vector2(pMinX + heelInsetX, pMinZ);			// Back Left
+				aboPolygon[1] = new Vector2(pMinX, pHeelZ);						// Side Back Left
+				aboPolygon[2] = new Vector2(pMinX, pCanineZ);					// Canine Left
+				aboPolygon[3] = new Vector2(MidX - lowerFrontInsetX, pMaxZ);	// Front Left Flat
+				aboPolygon[4] = new Vector2(MidX + lowerFrontInsetX, pMaxZ);	// Front Right Flat
+				aboPolygon[5] = new Vector2(pMaxX, pCanineZ);					// Canine Right
+				aboPolygon[6] = new Vector2(pMaxX, pHeelZ);						// Side Back Right
+				aboPolygon[7] = new Vector2(pMaxX - heelInsetX, pMinZ);			// Back Right
+			}
+
+			isSafe = IsPolygonSafe(aboPolygon, spline2D, 0.0005f);
+
+			if (!isSafe)
+			{
+				dynamicInflation += 0.1f * settings.widePadding;
+			}
+
+			safetyCounter++;
 		}
-		else
-		{
-			aboPolygon = new Vector2[8];
 
-			aboPolygon[0] = new Vector2(minX + heelInsetX, minZ);		// Back Left
-			aboPolygon[1] = new Vector2(minX, heelZ);					// Side Back Left
-			aboPolygon[2] = new Vector2(minX, canineZ);					// Canine Left
-			aboPolygon[3] = new Vector2(MidX - lowerFrontInsetX, maxZ); // Front Left Flat
-			aboPolygon[4] = new Vector2(MidX + lowerFrontInsetX, maxZ); // Front Right Flat
-			aboPolygon[5] = new Vector2(maxX, canineZ);					// Canine Right
-			aboPolygon[6] = new Vector2(maxX, heelZ);					// Side Back Right
-			aboPolygon[7] = new Vector2(maxX - heelInsetX, minZ);		// Back Right
+		if (safetyCounter >= maxExpansions)
+		{
+			Debug.LogWarning("BaseBuilder has hit max expansions! The dental arch shape is extremely irregular.");
 		}
 
 		// chop the edges into hundreds of tiny segments for the wavy wall
@@ -1206,6 +1231,61 @@ public class BaseBuilder : MonoBehaviour
 		return (finalVerts.ToArray(), finalTris.ToArray());
 	}
 
+	private bool IsPolygonSafe(Vector2[] polygon, List<Vector2> spline, float safeMargin)
+	{
+		float safeMarginSq = safeMargin * safeMargin;
+
+		foreach (Vector2 pt in spline)
+		{
+			bool isInside = false;
+
+			// point-in-polygon check (raycast even-odd rule)
+			for (int i = 0, j = polygon.Length - 1; i < polygon.Length; j = i++)
+			{
+				if (((polygon[i].y > pt.y) != (polygon[j].y > pt.y)) && (pt.x < (polygon[j].x - polygon[i].x) * (pt.y - polygon[i].y) / (polygon[j].y - polygon[i].y) + polygon[i].x))
+				{
+					isInside = !isInside;
+				}
+			}
+
+			// the spline escaped the polygon!
+			if (!isInside)
+			{
+				return false;
+			}
+
+			// proximity check (prevents CDT precision crashes)
+			for (int i = 0; i < polygon.Length; i++)
+			{
+				Vector2 p1 = polygon[i];
+				Vector2 p2 = polygon[(i + 1) % polygon.Length];
+
+				// spline is too close to the wall
+				if (SqrDistancePointToSegment(pt, p1, p2) < safeMarginSq)
+				{
+					return false; 
+				}
+			}
+		}
+
+		return true;
+	}
+
+	private float SqrDistancePointToSegment(Vector2 pt, Vector2 p1, Vector2 p2)
+	{
+		float l2 = (p1 - p2).sqrMagnitude;
+
+		if (l2 == 0)
+		{
+			return (pt - p1).sqrMagnitude;
+		}
+
+		float t = Mathf.Max(0f, Mathf.Min(1f, Vector2.Dot(pt - p1, p2 - p1) / l2));
+		Vector2 projection = p1 + t * (p2 - p1);
+
+		return (pt - projection).sqrMagnitude;
+	}
+
 	// a mathematically strict index search, which prevents scrambled Y-heights
 	private int FindExactIndex(Vector2[] array, Vector2 target)
 	{
@@ -1223,10 +1303,8 @@ public class BaseBuilder : MonoBehaviour
 			}
 		}
 
-		float distanceThreshold = Config.Instance.densificationDistance * Config.Instance.exactIndexEdgeRatioThreshold;
-
-        return bestDist < distanceThreshold ? bestIdx : -1;
-    }
+		return bestDist < 1e-5f ? bestIdx : -1;
+	}
 
 	// a forgiving index search, which prevents wall stitching failures
 	private int FindClosestIndex(Vector2[] array, Vector2 target)

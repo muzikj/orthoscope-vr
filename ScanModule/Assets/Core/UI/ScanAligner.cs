@@ -2,85 +2,127 @@ using UnityEngine;
 
 public class ScanAligner : MonoBehaviour
 {
-    private void OnEnable()
-    {
-        ScanEvents.OnAlignBasesRequested += HandleAlignRequested;
-    }
+	private void OnEnable()
+	{
+		ScanEvents.OnAlignBasesRequested += HandleAlignRequested;
+	}
 
-    private void OnDisable()
-    {
-        ScanEvents.OnAlignBasesRequested -= HandleAlignRequested;
-    }
+	private void OnDisable()
+	{
+		ScanEvents.OnAlignBasesRequested -= HandleAlignRequested;
+	}
 
-    private void HandleAlignRequested()
-    {
-        ScanController[] scans = FindObjectsByType<ScanController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+	// simulate backing a mesh up into a flat wall until it hits
+	private float SweepMeshAgainstWall(Transform meshTransform, Mesh mesh, bool backIsNegativeZ)
+	{
+		Vector3[] vertices = mesh.vertices;
+		float wallHitZ = backIsNegativeZ ? float.MaxValue : float.MinValue;
 
-        ScanController upper = null;
-        ScanController lower = null;
+		for (int i = 0; i < vertices.Length; i++)
+		{
+			Vector3 worldPt = meshTransform.TransformPoint(vertices[i]);
 
-        int selectedCount = 0;
+			if (backIsNegativeZ)
+			{
+				if (worldPt.z < wallHitZ) wallHitZ = worldPt.z; // pushing backwards into -Z
+			}
+			else
+			{
+				if (worldPt.z > wallHitZ) wallHitZ = worldPt.z; // pushing backwards into +Z
+			}
+		}
 
-        foreach (var scan in scans)
-        {
-            if (scan.Selected)
-            {
-                selectedCount++;
+		return wallHitZ;
+	}
 
-                if (scan.jawType == ScanController.JawType.Upper)
-                {
-                    upper = scan;
-                }
-                else if (scan.jawType == ScanController.JawType.Lower)
-                {
-                    lower = scan;
-                }
-            }
-        }
+	private void HandleAlignRequested()
+	{
+		ScanController[] scans = FindObjectsByType<ScanController>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+		
+		ScanController upper = null;
+		ScanController lower = null;
+		
+		int selectedCount = 0;
 
-        if (selectedCount != 2 || upper == null || lower == null)
-        {
-            ScanEvents.RequestUIMessage("Please select exactly one Upper Base and one Lower Base to align.");
+		foreach (var scan in scans)
+		{
+			if (scan.Selected)
+			{
+				selectedCount++;
+
+				if (scan.jawType == ScanController.JawType.Upper)
+				{
+					upper = scan;
+				}
+				else if (scan.jawType == ScanController.JawType.Lower)
+				{
+					lower = scan;
+				}
+			}
+		}
+
+		if (selectedCount != 2 || upper == null || lower == null)
+		{
+			ScanEvents.RequestUIMessage("Please select exactly one Upper Base and one Lower Base to align.");
+
+			return;
+		}
+
+        // rotate lower as Top and upper as Bot and apply rotation First for the AABB
+        Quaternion lowerRot = Quaternion.Euler(90f, 0f, 0f) * lower.OriginalRotation;
+		Quaternion upperRot = Quaternion.Euler(-90f, 0f, 0f) * upper.OriginalRotation;
+
+		lower.transform.rotation = lowerRot;
+		upper.transform.rotation = upperRot;
+
+        // leave lower in place and move upper to match it
+        Vector3 lowerPos = lower.transform.position;
+		upper.transform.position = lowerPos;
+
+		// get the base children
+		Transform lowerBaseT = lower.transform.Find("Ortho_Lower_Final"); // TODO: make this not hardcoded to a string name
+		Transform upperBaseT = upper.transform.Find("Ortho_Upper_Final");
+
+		if (lowerBaseT == null || upperBaseT == null)
+		{
+			Debug.LogWarning("Could not find base children on one or both scans. Make sure they have the expected child objects named 'Ortho_Lower_Final' and 'Ortho_Upper_Final'.");
 
             return;
         }
 
-        // rotate lower as Top and upper as Bot and apply rotation First for the AABB
-        Quaternion lowerRot = Quaternion.Euler(90f, 0f, 0f) * lower.OriginalRotation;
-        Quaternion upperRot = Quaternion.Euler(-90f, 0f, 0f) * upper.OriginalRotation;
+        // add convex MeshColliders
+        if (!lowerBaseT.TryGetComponent<MeshCollider>(out var lowerCol))
+		{
+			lowerCol = lowerBaseT.gameObject.AddComponent<MeshCollider>();
+			lowerCol.convex = true;
+		}
 
-        lower.transform.rotation = lowerRot;
-        upper.transform.rotation = upperRot;
+		if (!upperBaseT.TryGetComponent<MeshCollider>(out var upperCol))
+		{
+			upperCol = upperBaseT.gameObject.AddComponent<MeshCollider>();
+			upperCol.convex = true;
+		}
 
-        // leave lower in place and move upper to match it
-        Vector3 lowerPos = lower.transform.position;
-        upper.transform.position = lowerPos;
+		// calculate Y-Stack and X-Center
+		Bounds lowerTotalBounds = lower.GetComponent<MeshRenderer>().bounds;
+		lowerTotalBounds.Encapsulate(lowerCol.bounds);
 
-        // ScanController requires a MeshRenderer, so we can safely get bounds from it
-        Bounds lowerBounds = lower.GetComponent<MeshRenderer>().bounds;
-        Bounds upperBounds = upper.GetComponent<MeshRenderer>().bounds;
+		Bounds upperTotalBounds = upper.GetComponent<MeshRenderer>().bounds;
+		upperTotalBounds.Encapsulate(upperCol.bounds);
 
-        // calculate the centering and upper offset
-        float offsetX = lowerBounds.center.x - upperBounds.center.x;
-        float offsetY = lowerBounds.max.y - upperBounds.min.y;
+		float offsetX = lowerTotalBounds.center.x - upperTotalBounds.center.x;
+		float offsetY = (lowerTotalBounds.max.y - upperTotalBounds.min.y) + Config.Instance.widePadding * 1.5f;
 
-        // calculate the depth offset, get the bases, fin back wall, transform to WS
-        Transform lowerBaseT = lower.transform.Find("Ortho_Lower_Final"); //TODO: make names not hardcoded
-        Transform upperBaseT = upper.transform.Find("Ortho_Upper_Final");
+		bool isBackNegativeZ = lowerCol.bounds.center.z < lower.GetComponent<MeshRenderer>().bounds.center.z;
 
-        Vector3 lowerBackLocal = new(0f, 0f, lowerBaseT.GetComponent<MeshFilter>().sharedMesh.bounds.max.z);
-        Vector3 upperBackLocal = new(0f, 0f, upperBaseT.GetComponent<MeshFilter>().sharedMesh.bounds.min.z);
+		float lowerWallZ = SweepMeshAgainstWall(lowerBaseT, lowerBaseT.GetComponent<MeshFilter>().sharedMesh, isBackNegativeZ);
+		float upperWallZ = SweepMeshAgainstWall(upperBaseT, upperBaseT.GetComponent<MeshFilter>().sharedMesh, isBackNegativeZ);
 
-        Vector3 lowerBackWorld = lowerBaseT.TransformPoint(lowerBackLocal);
-        Vector3 upperBackWorld = upperBaseT.TransformPoint(upperBackLocal);
-
-        float offsetZ = lowerBackWorld.z - upperBackWorld.z;
+		float offsetZ = lowerWallZ - upperWallZ;
 
         // apply the final offset to upper
-        Vector3 upperPos = lowerPos + new Vector3(offsetX, offsetY, offsetZ);
+        upper.transform.position += new Vector3(offsetX, offsetY, offsetZ);
 
-        upper.transform.position = upperPos;
-
-        ScanEvents.RequestUIMessage("Bases Aligned Face-Up!");
-    }
+		ScanEvents.RequestUIMessage("Bases Aligned Face-Up!");
+	}
 }
