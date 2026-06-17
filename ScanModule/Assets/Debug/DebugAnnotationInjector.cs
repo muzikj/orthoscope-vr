@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [System.Serializable]
-public struct DebugMockSet
+public struct DebugAnnotation
 {
 	[Tooltip("Parent object for the planes. Children 0-2 = Occlusal, Children 3-4 = Sagittal")]
 	public Transform planarGroup;
@@ -12,9 +12,9 @@ public struct DebugMockSet
 	public Transform lowerSplineGroup;
 }
 
-public class DebugScanAutomator : MonoBehaviour
+public class DebugAnnotationInjector : MonoBehaviour
 {
-	public List<DebugMockSet> debugSets = new();
+	public List<DebugAnnotation> debugSets = new();
 
 	private enum TargetSystem
 	{
@@ -24,12 +24,12 @@ public class DebugScanAutomator : MonoBehaviour
 
 	private void OnEnable()
 	{
-		ScanEvents.OnInjectDebugDataRequested += HandleInjectDebugDataRequested;
+		UIEvents.OnInjectDebugDataRequested += HandleInjectDebugDataRequested;
 	}
 
 	private void OnDisable()
 	{
-		ScanEvents.OnInjectDebugDataRequested -= HandleInjectDebugDataRequested;
+		UIEvents.OnInjectDebugDataRequested -= HandleInjectDebugDataRequested;
 	}
 
 	private void HandleInjectDebugDataRequested(int setIndex)
@@ -48,7 +48,7 @@ public class DebugScanAutomator : MonoBehaviour
 			return;
 		}
 
-		DebugMockSet currentSet = debugSets[setIndex];
+		DebugAnnotation currentSet = debugSets[setIndex];
 
 		switch (BaseBuilder.Instance.currentState)
 		{
@@ -161,11 +161,11 @@ public class DebugScanAutomator : MonoBehaviour
 			return;
 		}
 
-		ScanSpline activeSpline = GetActiveSpline();
+		AnnotationManager activeSpline = GetActiveSpline();
 
 		if (activeSpline == null)
 		{
-			Debug.LogWarning($"[DebugAutomator] No open ScanSpline found for {debugName}!");
+			Debug.LogWarning($"[DebugAutomator] No open AnnotationManager found for {debugName}!");
 
 			return;
 		}
@@ -199,9 +199,9 @@ public class DebugScanAutomator : MonoBehaviour
 		}
 	}
 
-	private ScanSpline GetActiveSpline()
+	private AnnotationManager GetActiveSpline()
 	{
-		foreach (var spline in FindObjectsByType<ScanSpline>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+		foreach (var spline in FindObjectsByType<AnnotationManager>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
 		{
 			if (!spline.bClosed)
 			{

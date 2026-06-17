@@ -1,9 +1,10 @@
 using UnityEngine;
 using UnityEngine.Rendering;
+
 using System.IO;
 using System.Threading.Tasks;
 
-public interface IScanParser
+public interface IParserMesh
 {
     Task<Mesh> ParseMeshAsync(string path);
 }
@@ -16,7 +17,7 @@ public struct MeshData
     public Color32[] colors;
 }
 
-public abstract class ScanParser : IScanParser
+public abstract class ParserMesh : IParserMesh
 {
     protected abstract MeshData ParseScan(string path);
 

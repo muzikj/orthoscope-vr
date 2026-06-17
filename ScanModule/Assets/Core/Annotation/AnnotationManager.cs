@@ -1,12 +1,13 @@
 using UnityEngine;
+
 using System.Collections.Generic;
 
-[RequireComponent(typeof(TubeRenderer))]
-public class ScanSpline : MonoBehaviour
+[RequireComponent(typeof(AnnotationTubeGenerator))]
+public class AnnotationManager : MonoBehaviour
 {
     public bool bClosed = false;
 
-    private TubeRenderer _tubeRenderer;
+    private AnnotationTubeGenerator _tubeRenderer;
 
     private List<Vector3> _markLocations = new();
     private List<Vector3> _markNormals = new();
@@ -14,17 +15,17 @@ public class ScanSpline : MonoBehaviour
 
     private void Awake()
     {
-        _tubeRenderer = GetComponent<TubeRenderer>();
+        _tubeRenderer = GetComponent<AnnotationTubeGenerator>();
     }
 
     private void OnEnable()
     {
-        ScanEvents.OnScaleRequested += HandleScaleRequested;
+        UIEvents.OnScaleRequested += HandleScaleRequested;
     }
 
     private void OnDisable()
     {
-        ScanEvents.OnScaleRequested -= HandleScaleRequested;
+        UIEvents.OnScaleRequested -= HandleScaleRequested;
     }
 
     public bool WillSnapToStart(Vector3 position, out Vector3 snapPosition, out Vector3 snapNormal)
@@ -174,7 +175,7 @@ public class ScanSpline : MonoBehaviour
         return splinePoints;
     }
 
-    public List<Vector3> GetSplinePoints() => GenerateProjectedSpline(); // TODO: seems like bad design, once again...
+    public List<Vector3> GetSplinePoints() => GenerateProjectedSpline();
 
     private Vector3 ProjectOntoSurface(Vector3 localPoint, Vector3 localNormal)
     {

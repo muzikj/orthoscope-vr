@@ -8,28 +8,41 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class ScanSpawner : MonoBehaviour
 {
-    public ModelTheme modelThemeVertexColor;
-    public ModelTheme modelThemeNoColor;
+    public DentalScanTheme modelThemeVertexColor;
+    public DentalScanTheme modelThemeNoColor;
 
     private void OnEnable()
     {
-        ScanEvents.OnImportScanRequested += HandleImportScanRequested;
+        UIEvents.OnImportScanRequested += HandleImportScanRequested;
     }
 
     private void OnDisable()
     {
-        ScanEvents.OnImportScanRequested -= HandleImportScanRequested;
+        UIEvents.OnImportScanRequested -= HandleImportScanRequested;
     }
 
     private async void HandleImportScanRequested(string path)
     {
+        if (string.IsNullOrEmpty(path))
+        {
+            UIEvents.RequestUIMessage("Path is invalid. Aborting import!");
+
+            return;
+        }
+
+        UIEvents.RequestUIMessage($"Importing scan from:\n{path}");
+
         await SpawnScanAsync(path);
     }
 
     public async Task SpawnScanAsync(string path)
     {
         var Parser = path.GetParser();
-        if (Parser == null) return;
+
+        if (Parser == null)
+        {
+            return;
+        }
 
         Mesh mesh = await Parser.ParseMeshAsync(path);
         
@@ -80,22 +93,22 @@ public class ScanSpawner : MonoBehaviour
             if (mesh.HasVertexAttribute(VertexAttribute.Color))
             {
                 if (modelThemeVertexColor != null) scanController.modelTheme = modelThemeVertexColor;
-                else Debug.LogError("Missing ModelTheme for the VertexColor option!");
+                else Debug.LogError("Missing DentalScanTheme for the VertexColor option!");
             }
             else
             {
                 if (modelThemeNoColor != null) scanController.modelTheme = modelThemeNoColor;
-                else Debug.LogError("Missing ModelTheme for the non-VertexColor option!");
+                else Debug.LogError("Missing DentalScanTheme for the non-VertexColor option!");
             }
 
             // allow drawing marks and tube splines
             GameObject splineCanvas = new("SplineCanvas");
             splineCanvas.transform.SetParent(scan.transform, false);
 
-            ScanSpline scanSpline = splineCanvas.AddComponent<ScanSpline>();
-            if (!splineCanvas.TryGetComponent<TubeRenderer>(out var tubeRenderer))
+            AnnotationManager scanSpline = splineCanvas.AddComponent<AnnotationManager>();
+            if (!splineCanvas.TryGetComponent<AnnotationTubeGenerator>(out var tubeRenderer))
             {
-                tubeRenderer = splineCanvas.AddComponent<TubeRenderer>();
+                tubeRenderer = splineCanvas.AddComponent<AnnotationTubeGenerator>();
             }
 
             if (!splineCanvas.TryGetComponent<MeshRenderer>(out var tubeMeshRenderer))
@@ -108,30 +121,29 @@ public class ScanSpawner : MonoBehaviour
                 tubeMeshRenderer.sharedMaterial = Config.Instance.splineMaterial;
             }
 
-            ScanEvents.NotifyImportScanCompleted(true);
+            UIEvents.RequestUIMessage("Scan imported successfully!");
         }
         else
         {
             Debug.LogError($"Failed to load scan file: {path}");
 
-            ScanEvents.NotifyImportScanCompleted(false);
+            UIEvents.RequestUIMessage("Failed to import scan.");
         }
     }
 }
 
 public static class ScanParserFactory
 {
-    public static readonly Dictionary<string, IScanParser> Parsers = new()
+    public static readonly Dictionary<string, IParserMesh> Parsers = new()
     {
-        // Path.GetExtension returns with the ".", so ".stl", instead of just "stl"
-        {".stl", new ScanParserSTL()},
-        {".ply", new ScanParserPLY()},
+        {".stl", new ParserMeshSTL()}, // Path.GetExtension returns with the ".", so ".stl", instead of just "stl"
+        {".ply", new ParserMeshPLY()},
     };
 }
 
 public static class FileParserExtensions
 {
-    public static IScanParser GetParser(this string path)
+    public static IParserMesh GetParser(this string path)
     {
         // avoid ".STL" x ".stl" capitalized shenanigans with ToLowerInvariant
         string format = Path.GetExtension(path).ToLowerInvariant();
@@ -142,6 +154,7 @@ public static class FileParserExtensions
         }
 
         Debug.LogError($"Cannot parse file {path}. Unsupported type {format}!");
+
         return null;
     }
 }

@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class XRSplineController : MonoBehaviour
+public class AnnotationXRMarker : MonoBehaviour
 {
     [Tooltip("Transform for correct XR pointing when using physical controllers.")]
     public Transform controllerPointerOrigin;
@@ -16,7 +16,7 @@ public class XRSplineController : MonoBehaviour
     private GameObject _ghostMark;
     private GameObject _closingGhostMark;
 
-    private ScanSpline _currentSpline;
+    private AnnotationManager _currentSpline;
 
     private bool IsMarkingPlanes => BaseBuilder.Instance != null && (BaseBuilder.Instance.currentState == BaseBuilder.BuilderState.MarkOcclusal || BaseBuilder.Instance.currentState == BaseBuilder.BuilderState.MarkSagittal);
 
@@ -96,8 +96,8 @@ public class XRSplineController : MonoBehaviour
 
         if (Physics.Raycast(currentOrigin.position, currentOrigin.forward, out RaycastHit hit, Config.Instance.raycastMaxDistance, Config.Instance.scanRaycastLayer))
         {
-            // we have hit the correct layer, which is a mere helper child object of the Scan, so we need to get the parent who controls it and then fetch the ScanSpline component on one of its children
-            _currentSpline = hit.collider.transform.parent.GetComponentInChildren<ScanSpline>();
+            // we have hit the correct layer, which is a mere helper child object of the Scan, so we need to get the parent who controls it and then fetch the AnnotationManager component on one of its children
+            _currentSpline = hit.collider.transform.parent.GetComponentInChildren<AnnotationManager>();
 
             if (_currentSpline != null)
             {

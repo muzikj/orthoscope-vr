@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using System.Collections.Generic;
 
-public class ScanParserPLY : ScanParser
+public class ParserMeshPLY : ParserMesh
 {
     protected override MeshData ParseScan(string path)
     {

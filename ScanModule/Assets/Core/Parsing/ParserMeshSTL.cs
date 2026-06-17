@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-public class ScanParserSTL : ScanParser
+public class ParserMeshSTL : ParserMesh
 {
     protected override MeshData ParseScan(string path)
     {

@@ -30,7 +30,23 @@ public class UIManager : MonoBehaviour
 		PopulateScans();
 	}
 
-	private void PopulateFormatOptions()
+    private void OnEnable()
+    {
+        UIEvents.OnUIMessageRequested += HandleUIMessageRequested;
+    }
+
+    private void OnDisable()
+    {
+        UIEvents.OnUIMessageRequested -= HandleUIMessageRequested;
+    }
+
+    private void OnDestroy()
+    {
+        // we have to disable the non-persistent event listener if destroyed
+        if (formatDropdown != null) formatDropdown.onValueChanged.RemoveListener(OnFormatChanged);
+    }
+
+    private void PopulateFormatOptions()
 	{
 		if (formatDropdown == null) return;
 
@@ -54,7 +70,7 @@ public class UIManager : MonoBehaviour
 		}
 	}
 
-	private void PopulateScans()
+	private void PopulateScans(bool bNotify = false)
 	{
 		if (scanDropdown == null || scanProvider == null) return;
 
@@ -69,116 +85,72 @@ public class UIManager : MonoBehaviour
 			scanOptions.Add(scan.displayName);
 		}
 		scanDropdown.AddOptions(scanOptions);
+
+		if (bNotify)
+		{
+			UIEvents.RequestUIMessage("Scan list refreshed!");
+        }
 	}
 
-	public void ClickRefreshDropdown()
+    private void DisableText() => ChangeTextVisibility(false);
+    private void EnableText() => ChangeTextVisibility(true);
+
+    private void ChangeTextVisibility(bool visible)
+    {
+        if (text != null)
+        {
+            text.gameObject.SetActive(visible);
+        }
+    }
+
+    private void ChangeText(string newText)
+    {
+        if (text != null)
+        {
+            text.text = newText;
+        }
+    }
+
+    private void HandleUIMessageRequested(string message)
+    {
+        ChangeText(message);
+        EnableText();
+
+        CancelInvoke(nameof(DisableText));
+        Invoke(nameof(DisableText), 3.5f);
+    }
+
+	private string GetSelectedScanPath()
 	{
-		PopulateScans();
-
-		ChangeText("Scan list refreshed!");
-		EnableText();
-
-		CancelInvoke(nameof(DisableText));
-		Invoke(nameof(DisableText), 2f);
-	}    
-
-	public void ClickImportSelectedScan()
-	{
-		if (_availableScans.Count == 0)
-		{
-			Debug.Log("No scans available!");
-			return;
-		}
-
 		int index = scanDropdown.value;
-		string selectedScanPath = _availableScans[index].filePath;
 
-		ClickImportScan(selectedScanPath);
-	}
-
-	public void ClickImportScan(string path)
-	{
-		 ScanEvents.RequestImportScan(path);
-	}    
-
-	private void OnEnable()
-	{
-		ScanEvents.OnImportScanRequested += HandleImportScanRequested;
-		ScanEvents.OnImportScanCompleted += HandleImportScanCompleted;
-		ScanEvents.OnUIMessageRequested += HandleUIMessageRequested;
-	}
-
-	private void OnDisable()
-	{
-		ScanEvents.OnImportScanRequested -= HandleImportScanRequested;
-		ScanEvents.OnImportScanCompleted -= HandleImportScanCompleted;
-		ScanEvents.OnUIMessageRequested -= HandleUIMessageRequested;
-	}
-
-	private void HandleImportScanRequested(string path)
-	{
-		ChangeText($"Importing scan from:\n{path}");
-		EnableText();
-	}
-
-	private void HandleImportScanCompleted(bool success)
-	{
-		ChangeText(success ? "Scan imported successfully!" : "Failed to import scan.");
-		Invoke(nameof(DisableText), 3f);
-	}
-
-	private void DisableText() => ChangeTextVisibility(false);
-	private void EnableText() => ChangeTextVisibility(true);
-
-	private void ChangeTextVisibility(bool visible)
-	{
-		if (text != null)
+		if (_availableScans == null || _availableScans.Count == 0 || index < 0 || index >= _availableScans.Count)
 		{
-			text.gameObject.SetActive(visible);
+			return string.Empty;
 		}
+		
+		return _availableScans[index].filePath;
 	}
 
-	private void ChangeText(string newText)
-	{
-		if (text != null)
-		{
-			text.text = newText;
-		}
-	}
+    public void ClickRefreshDropdown() => PopulateScans(true);
+    public void ClickImportSelectedScan() => UIEvents.RequestImportScan(GetSelectedScanPath());
 
-	public void ClickDeleteScan() => ScanEvents.RequestDeleteScan();
+    public void ClickDeleteScan() => UIEvents.RequestDeleteScan();
+	public void ClickResetScan() => UIEvents.RequestResetScan();
 
-	public void ClickResetScan() => ScanEvents.RequestResetScan();
+	public void ClickChangeScale(float scaleFactor) => UIEvents.RequestScaleScan(scaleFactor);
 
-	public void ClickChangeScale(float scaleFactor) => ScanEvents.RequestScaleScan(scaleFactor);
+	public void ClickAdvanceBuilder() => UIEvents.RequestAdvanceBuilder();
+	public void ClickResetBuilder() => UIEvents.RequestResetBuilder();
 
-	public void ClickAdvanceBuilder() => ScanEvents.RequestAdvanceBuilder();
+	public void ClickViewFront() => UIEvents.RequestSnapView(OrthoView.Front);
+	public void ClickViewBack() => UIEvents.RequestSnapView(OrthoView.Back);
+	public void ClickViewLeft() => UIEvents.RequestSnapView(OrthoView.Left);
+	public void ClickViewRight() => UIEvents.RequestSnapView(OrthoView.Right);
+	public void ClickViewTop() => UIEvents.RequestSnapView(OrthoView.Top);
+	public void ClickViewBottom() => UIEvents.RequestSnapView(OrthoView.Bottom);
 
-	public void ClickResetBuilder() => ScanEvents.RequestResetBuilder();
+	public void ClickAlignBases() => UIEvents.RequestAlignBases();
 
-	public void ClickViewFront() => ScanEvents.RequestSnapView(OrthoView.Front);
-	public void ClickViewBack() => ScanEvents.RequestSnapView(OrthoView.Back);
-	public void ClickViewLeft() => ScanEvents.RequestSnapView(OrthoView.Left);
-	public void ClickViewRight() => ScanEvents.RequestSnapView(OrthoView.Right);
-	public void ClickViewTop() => ScanEvents.RequestSnapView(OrthoView.Top);
-	public void ClickViewBottom() => ScanEvents.RequestSnapView(OrthoView.Bottom);
-
-	public void ClickAlignBases() => ScanEvents.RequestAlignBases();
-
-	public void ClickInjectDebugData(int setIndex) => ScanEvents.RequestInjectDebugData(setIndex);
-
-	private void HandleUIMessageRequested(string message)
-	{
-		ChangeText(message);
-		EnableText();
-
-		CancelInvoke(nameof(DisableText));
-		Invoke(nameof(DisableText), 3.5f);
-	}
-
-	private void OnDestroy()
-	{
-		// we have to disable the non-persistent event listener if destroyed
-		if (formatDropdown != null) formatDropdown.onValueChanged.RemoveListener(OnFormatChanged);
-	}
+	public void ClickInjectDebugData(int setIndex) => UIEvents.RequestInjectDebugData(setIndex);
 }

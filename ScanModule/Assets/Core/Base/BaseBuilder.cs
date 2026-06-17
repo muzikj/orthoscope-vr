@@ -4,6 +4,11 @@ using System.Threading.Tasks;
 
 using UnityEngine;
 
+// necessary Unity Triangle .NET library
+using TriangleNet.Geometry;
+using TriangleNet.Meshing;
+using TriangleNet.Topology;
+
 public class BaseBuilder : MonoBehaviour
 {
 	[Tooltip("The final location where upper and lower bases will be moved.")]
@@ -69,14 +74,14 @@ public class BaseBuilder : MonoBehaviour
 
 	private void OnEnable()
 	{
-		ScanEvents.OnAdvanceBuilderRequested += HandleAdvanceRequested;
-		ScanEvents.OnResetBuilderRequested += HandleResetBuilderRequested;
+		UIEvents.OnAdvanceBuilderRequested += HandleAdvanceRequested;
+		UIEvents.OnResetBuilderRequested += HandleResetBuilderRequested;
 	}
 
 	private void OnDisable()
 	{
-		ScanEvents.OnAdvanceBuilderRequested -= HandleAdvanceRequested;
-		ScanEvents.OnResetBuilderRequested -= HandleResetBuilderRequested;
+		UIEvents.OnAdvanceBuilderRequested -= HandleAdvanceRequested;
+		UIEvents.OnResetBuilderRequested -= HandleResetBuilderRequested;
 	}
 
 	private async void HandleAdvanceRequested()
@@ -109,19 +114,19 @@ public class BaseBuilder : MonoBehaviour
 		{
 			if (_occlusalPoints.Count < 3)
 			{
-				ScanEvents.RequestUIMessage($"Please, place 3 Occlusal points first! ({_occlusalPoints.Count}/3)");
+				UIEvents.RequestUIMessage($"Please, place 3 Occlusal points first! ({_occlusalPoints.Count}/3)");
 
 				return;
 			}
 
 			currentState = BuilderState.MarkSagittal;
-			ScanEvents.RequestUIMessage("State Advanced\nNow marking Sagittal Plane (2 points on upper palate).");
+			UIEvents.RequestUIMessage("State Advanced\nNow marking Sagittal Plane (2 points on upper palate).");
 		}
 		else if (currentState == BuilderState.MarkSagittal)
 		{
 			if (_sagittalPoints.Count < 2)
 			{
-				ScanEvents.RequestUIMessage($"Please, place 2 Sagittal points first! ({_sagittalPoints.Count}/2)");
+				UIEvents.RequestUIMessage($"Please, place 2 Sagittal points first! ({_sagittalPoints.Count}/2)");
 
 				return;
 			}
@@ -133,12 +138,12 @@ public class BaseBuilder : MonoBehaviour
 			DestroyPlanePoints();
 
 			currentState = BuilderState.MarkUpperGums;
-			ScanEvents.RequestUIMessage("State Advanced\nNow marking Gum Splines. TubeRenderer active!");
+			UIEvents.RequestUIMessage("State Advanced\nNow marking Gum Splines. AnnotationTubeGenerator active!");
 		}
 		else if (currentState == BuilderState.MarkUpperGums)
 		{
-			ScanSpline upperSpline = null;
-			ScanSpline[] activeSplines = FindObjectsByType<ScanSpline>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+			AnnotationManager upperSpline = null;
+			AnnotationManager[] activeSplines = FindObjectsByType<AnnotationManager>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 			foreach (var spline in activeSplines)
 			{
 				if (spline.bClosed)
@@ -150,13 +155,13 @@ public class BaseBuilder : MonoBehaviour
 
 			if (upperSpline == null)
 			{
-				ScanEvents.RequestUIMessage("Missing a closed spline!\nClose the spline before advancing!");
+				UIEvents.RequestUIMessage("Missing a closed spline!\nClose the spline before advancing!");
 
 				return;
 			}
 
 			currentState = BuilderState.MeshingUpper;
-			ScanEvents.RequestUIMessage("State Advanced:\nNow processing the Upper Base...");
+			UIEvents.RequestUIMessage("State Advanced:\nNow processing the Upper Base...");
 
 			if (upperSpline.transform.parent.TryGetComponent<MeshRenderer>(out var upperRenderer))
 			{
@@ -168,12 +173,12 @@ public class BaseBuilder : MonoBehaviour
 			_bUpperJaw = false;
 
 			currentState = BuilderState.MarkLowerGums;
-			ScanEvents.RequestUIMessage("Success!\nUpper Base Complete!\nMoving onto the Lower Gum Splines.");
+			UIEvents.RequestUIMessage("Success!\nUpper Base Complete!\nMoving onto the Lower Gum Splines.");
 		}
 		else if (currentState == BuilderState.MarkLowerGums)
 		{
-			ScanSpline lowerSpline = null;
-			ScanSpline[] activeSplines = FindObjectsByType<ScanSpline>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+			AnnotationManager lowerSpline = null;
+			AnnotationManager[] activeSplines = FindObjectsByType<AnnotationManager>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 			foreach (var spline in activeSplines)
 			{
 				if (spline.bClosed)
@@ -185,13 +190,13 @@ public class BaseBuilder : MonoBehaviour
 
 			if (lowerSpline == null)
 			{
-				ScanEvents.RequestUIMessage("Missing a closed spline!\nClose the spline before advancing!");
+				UIEvents.RequestUIMessage("Missing a closed spline!\nClose the spline before advancing!");
 
 				return;
 			}
 
 			currentState = BuilderState.MeshingLower;
-			ScanEvents.RequestUIMessage("State Advanced:\nNow processing the Lower Base...");
+			UIEvents.RequestUIMessage("State Advanced:\nNow processing the Lower Base...");
 
 			if (lowerSpline.transform.parent.TryGetComponent<MeshRenderer>(out var lowerRenderer))
 			{
@@ -201,7 +206,7 @@ public class BaseBuilder : MonoBehaviour
 			await TrimmingAndBasePipelineAsync(lowerSpline);
 
 			currentState = BuilderState.Finished;
-			ScanEvents.RequestUIMessage("Success!\nLower Base Complete!\nABO Base Finished!");
+			UIEvents.RequestUIMessage("Success!\nLower Base Complete!\nABO Base Finished!");
 
 			await Task.Delay(3500);
 
@@ -209,7 +214,7 @@ public class BaseBuilder : MonoBehaviour
 		}
 	}
 
-	private async Task TrimmingAndBasePipelineAsync(ScanSpline activeSpline)
+	private async Task TrimmingAndBasePipelineAsync(AnnotationManager activeSpline)
 	{
 		if (activeSpline != null)
 		{
@@ -239,7 +244,7 @@ public class BaseBuilder : MonoBehaviour
 		}
 	}
 
-	public async Task ZipScanToSkirtAsync(MeshFilter scanMeshFilter, ScanSpline skirtSpline)
+	private async Task ZipScanToSkirtAsync(MeshFilter scanMeshFilter, AnnotationManager skirtSpline)
 	{
 		// raw data on Main
 		Vector3[] scanVerts = scanMeshFilter.mesh.vertices;
@@ -505,7 +510,7 @@ public class BaseBuilder : MonoBehaviour
 		return longestLoop;
 	}
 
-	private async Task BaseGenerationPipelineAsync(ScanSpline spline)
+	private async Task BaseGenerationPipelineAsync(AnnotationManager spline)
 	{
 		Debug.Log("Extracting spline points.");
 		List<Vector3> splinePoints = spline.GetSplinePoints();
@@ -529,7 +534,7 @@ public class BaseBuilder : MonoBehaviour
 		BuildFinalBaseObject(vertices, triangles, spline);
 	}
 
-	private void BuildFinalBaseObject(Vector3[] vertices, int[] triangles, ScanSpline spline)
+	private void BuildFinalBaseObject(Vector3[] vertices, int[] triangles, AnnotationManager spline)
 	{
 		Mesh finalBaseMesh = new()
 		{
@@ -575,7 +580,7 @@ public class BaseBuilder : MonoBehaviour
 		spline.gameObject.SetActive(false);
 	}
 
-	public async Task TrimScanAsync(MeshFilter scanMeshFilter, ScanSpline cutSpline)
+	private async Task TrimScanAsync(MeshFilter scanMeshFilter, AnnotationManager cutSpline)
 	{
 		Mesh scanMesh = scanMeshFilter.mesh;
 
@@ -800,7 +805,7 @@ public class BaseBuilder : MonoBehaviour
 			if (mark != null) _occlusalMarks.Add(mark);
 
 			UpdateMarkColors(_occlusalMarks, 3);
-			ScanEvents.RequestUIMessage($"Occlusal point added. ({_occlusalPoints.Count}/3)");
+			UIEvents.RequestUIMessage($"Occlusal point added. ({_occlusalPoints.Count}/3)");
 		}
 		else if (currentState == BuilderState.MarkSagittal)
 		{
@@ -808,7 +813,7 @@ public class BaseBuilder : MonoBehaviour
 			if (mark != null) _sagittalMarks.Add(mark);
 
 			UpdateMarkColors(_sagittalMarks, 2);
-			ScanEvents.RequestUIMessage($"Sagittal point added. ({_sagittalPoints.Count}/2)");
+			UIEvents.RequestUIMessage($"Sagittal point added. ({_sagittalPoints.Count}/2)");
 		}
 
 		UpdatePlanePreviews(scanTransform);
@@ -822,7 +827,7 @@ public class BaseBuilder : MonoBehaviour
 			RemoveLastMark(_occlusalMarks);
 
 			UpdateMarkColors(_occlusalMarks, 3);
-			ScanEvents.RequestUIMessage($"Last occlusal point removed. ({_occlusalPoints.Count}/3)");
+			UIEvents.RequestUIMessage($"Last occlusal point removed. ({_occlusalPoints.Count}/3)");
 		}
 		else if (currentState == BuilderState.MarkSagittal && _sagittalPoints.Count > 0)
 		{
@@ -830,7 +835,7 @@ public class BaseBuilder : MonoBehaviour
 			RemoveLastMark(_sagittalMarks);
 
 			UpdateMarkColors(_sagittalMarks, 2);
-			ScanEvents.RequestUIMessage($"Last sagittal point removed. ({_sagittalPoints.Count}/2)");
+			UIEvents.RequestUIMessage($"Last sagittal point removed. ({_sagittalPoints.Count}/2)");
 		}
 
 		Transform parentTransform = null;
@@ -1044,8 +1049,8 @@ public class BaseBuilder : MonoBehaviour
 		List<Vector2> outerBound = new(denseAboPolygon);
 
 		// generate flat meshes via Constrained Delaunay Triangulation
-		var (skirtVerts2D, skirtTris) = CDTGenerator.Triangulate2D(outerBound, spline2D);
-		var (botVerts2D, botTris) = CDTGenerator.Triangulate2D(outerBound);
+		var (skirtVerts2D, skirtTris) = Triangulate2D(outerBound, spline2D);
+		var (botVerts2D, botTris) = Triangulate2D(outerBound);
 
 		List<Vector3> finalVerts = new();
 		List<int> finalTris = new();
@@ -1231,7 +1236,102 @@ public class BaseBuilder : MonoBehaviour
 		return (finalVerts.ToArray(), finalTris.ToArray());
 	}
 
-	private bool IsPolygonSafe(Vector2[] polygon, List<Vector2> spline, float safeMargin)
+    private static (Vector2[] vertices, int[] triangles) Triangulate2D(List<Vector2> outerBoundary, List<Vector2> innerBoundary = null)
+    {
+        Polygon polygon = new();
+
+        // outer boundary
+        List<Vertex> boundaryVertices = new(outerBoundary.Count);
+
+        foreach (Vector2 pt in outerBoundary)
+        {
+            boundaryVertices.Add(new Vertex(pt.x, pt.y));
+        }
+
+        polygon.Add(new Contour(boundaryVertices), false);
+
+        // inner boundary
+        if (innerBoundary != null && innerBoundary.Count > 0)
+        {
+            List<Vertex> innerVertices = new(innerBoundary.Count);
+
+            foreach (Vector2 pt in innerBoundary)
+            {
+                innerVertices.Add(new Vertex(pt.x, pt.y));
+            }
+
+            // do not punch a hole
+            polygon.Add(new Contour(innerVertices), false);
+        }
+
+        ConstraintOptions constraints = new()
+        {
+            ConformingDelaunay = false
+        };
+
+        IMesh cdtMesh = polygon.Triangulate(constraints);
+
+        return ConvertToUnityData(cdtMesh, innerBoundary);
+    }
+
+    private static (Vector2[], int[]) ConvertToUnityData(IMesh cdtMesh, List<Vector2> holePolygon)
+    {
+        Vector2[] unityVertices = new Vector2[cdtMesh.Vertices.Count];
+        Dictionary<int, int> idToIndex = new();
+
+        int index = 0;
+        foreach (Vertex v in cdtMesh.Vertices)
+        {
+            unityVertices[index] = new Vector2((float)v.X, (float)v.Y);
+            idToIndex[v.ID] = index;
+            index++;
+        }
+
+        List<int> unityTriangles = new();
+        Vector2[] holePolyArray = holePolygon?.ToArray();
+
+        foreach (Triangle tri in cdtMesh.Triangles)
+        {
+            Vector2 v0 = unityVertices[idToIndex[tri.GetVertex(0).ID]];
+            Vector2 v1 = unityVertices[idToIndex[tri.GetVertex(1).ID]];
+            Vector2 v2 = unityVertices[idToIndex[tri.GetVertex(2).ID]];
+
+            // check if the center of this triangle is inside the teeth spline
+            if (holePolyArray != null && holePolyArray.Length > 2)
+            {
+                Vector2 centroid = (v0 + v1 + v2) / 3f;
+
+                if (IsPointInPolygon(centroid, holePolyArray))
+                {
+                    continue;
+                }
+            }
+
+            unityTriangles.Add(idToIndex[tri.GetVertex(2).ID]);
+            unityTriangles.Add(idToIndex[tri.GetVertex(1).ID]);
+            unityTriangles.Add(idToIndex[tri.GetVertex(0).ID]);
+        }
+
+        return (unityVertices, unityTriangles.ToArray());
+    }
+
+    // mathematical raycast (even-odd rule) to accurately detect if a point is inside a complex 2D shape
+    private static bool IsPointInPolygon(Vector2 point, Vector2[] polygon)
+    {
+        bool isInside = false;
+
+        for (int i = 0, j = polygon.Length - 1; i < polygon.Length; j = i++)
+        {
+            if (((polygon[i].y > point.y) != (polygon[j].y > point.y)) && (point.x < (polygon[j].x - polygon[i].x) * (point.y - polygon[i].y) / (polygon[j].y - polygon[i].y) + polygon[i].x))
+            {
+                isInside = !isInside;
+            }
+        }
+
+        return isInside;
+    }
+
+    private bool IsPolygonSafe(Vector2[] polygon, List<Vector2> spline, float safeMargin)
 	{
 		float safeMarginSq = safeMargin * safeMargin;
 
@@ -1361,7 +1461,7 @@ public class BaseBuilder : MonoBehaviour
 		currentState = BuilderState.MarkOcclusal;
 
 		// update the UI
-		ScanEvents.RequestUIMessage("Builder Auto-Reset!\nReady for a new scan. Place 3 Occlusal points.");
+		UIEvents.RequestUIMessage("Base Builder has been Reset!\nReady for a new scan.\nPlace 3 Occlusal points.");
 	}
 
 	private void UpdatePlanePreviews(Transform scanTransform)

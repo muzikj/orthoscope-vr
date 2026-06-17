@@ -1,4 +1,5 @@
 using System;
+
 using UnityEngine;
 
 public enum OrthoView
@@ -11,19 +12,15 @@ public enum OrthoView
 	Bottom
 }
 
-public class ScanEvents // TODO: add sound effects
+public class UIEvents
 {
-	// importing .stl scans
+	// importing scans
 	public static event Action<string> OnImportScanRequested;
-	public static event Action<bool> OnImportScanCompleted;
-
 	public static void RequestImportScan(string path) => OnImportScanRequested?.Invoke(path);
-	public static void NotifyImportScanCompleted(bool success) => OnImportScanCompleted?.Invoke(success);
 
 	// selecting scans
 	public static event Action<GameObject> OnScanSelected;
 	public static event Action<GameObject> OnScanDeselected;
-
 	public static void NotifyScanSelected(GameObject scan) => OnScanSelected?.Invoke(scan);
 	public static void NotifyScanDeselected(GameObject scan) => OnScanDeselected?.Invoke(scan);
 	
@@ -63,7 +60,6 @@ public class ScanEvents // TODO: add sound effects
 	public static event Action<Transform> OnGroupGrabStarted;
 	public static event Action<Transform> OnGroupMoved;
 	public static event Action OnGroupGrabEnded;
-
 	public static void RequestGroupGrabStart(Transform leaderTransform) => OnGroupGrabStarted?.Invoke(leaderTransform);
 	public static void RequestGroupMove(Transform leaderTransform) => OnGroupMoved?.Invoke(leaderTransform);
 	public static void RequestGroupGrabEnd() => OnGroupGrabEnded?.Invoke();

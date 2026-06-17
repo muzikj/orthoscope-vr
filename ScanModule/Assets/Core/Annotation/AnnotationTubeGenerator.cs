@@ -1,8 +1,9 @@
 using System.Collections.Generic;
+
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-public class TubeRenderer : MonoBehaviour
+public class AnnotationTubeGenerator : MonoBehaviour
 {
     private Mesh _mesh;
 

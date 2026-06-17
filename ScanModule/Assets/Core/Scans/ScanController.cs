@@ -6,7 +6,7 @@ using UnityEngine.XR.Interaction.Toolkit;
 [RequireComponent(typeof(MeshRenderer), typeof(XRGrabInteractable))]
 public class ScanController : MonoBehaviour
 {
-    public ModelTheme modelTheme;
+    public DentalScanTheme modelTheme;
 
     public bool Selected { get; private set; } = false;
 
@@ -73,7 +73,7 @@ public class ScanController : MonoBehaviour
 
         if (_isLeader)
         {
-            ScanEvents.RequestGroupMove(transform);
+            UIEvents.RequestGroupMove(transform);
         }
     }
 
@@ -85,14 +85,14 @@ public class ScanController : MonoBehaviour
         _grabInteractable.selectEntered.AddListener(OnGrabbed);
         _grabInteractable.selectExited.AddListener(OnReleased);
 
-        ScanEvents.OnGroupGrabStarted += HandleGroupGrabStarted;
-        ScanEvents.OnGroupMoved += HandleGroupMoved;
-        ScanEvents.OnGroupGrabEnded += HandleGroupGrabEnded;
+        UIEvents.OnGroupGrabStarted += HandleGroupGrabStarted;
+        UIEvents.OnGroupMoved += HandleGroupMoved;
+        UIEvents.OnGroupGrabEnded += HandleGroupGrabEnded;
 
-        ScanEvents.OnDeleteRequested += HandleDeleteRequested;
-        ScanEvents.OnResetRequested += HandleResetRequested;
-        ScanEvents.OnScaleRequested += HandleScaleRequested;
-        ScanEvents.OnSnapViewRequested += HandleSnapViewRequested;
+        UIEvents.OnDeleteRequested += HandleDeleteRequested;
+        UIEvents.OnResetRequested += HandleResetRequested;
+        UIEvents.OnScaleRequested += HandleScaleRequested;
+        UIEvents.OnSnapViewRequested += HandleSnapViewRequested;
     }
 
     private void OnDisable()
@@ -103,14 +103,14 @@ public class ScanController : MonoBehaviour
         _grabInteractable.selectEntered.RemoveListener(OnGrabbed);
         _grabInteractable.selectExited.RemoveListener(OnReleased);
 
-        ScanEvents.OnGroupGrabStarted -= HandleGroupGrabStarted;
-        ScanEvents.OnGroupMoved -= HandleGroupMoved;
-        ScanEvents.OnGroupGrabEnded -= HandleGroupGrabEnded;
+        UIEvents.OnGroupGrabStarted -= HandleGroupGrabStarted;
+        UIEvents.OnGroupMoved -= HandleGroupMoved;
+        UIEvents.OnGroupGrabEnded -= HandleGroupGrabEnded;
 
-        ScanEvents.OnDeleteRequested -= HandleDeleteRequested;
-        ScanEvents.OnResetRequested -= HandleResetRequested;
-        ScanEvents.OnScaleRequested -= HandleScaleRequested;
-        ScanEvents.OnSnapViewRequested -= HandleSnapViewRequested;
+        UIEvents.OnDeleteRequested -= HandleDeleteRequested;
+        UIEvents.OnResetRequested -= HandleResetRequested;
+        UIEvents.OnScaleRequested -= HandleScaleRequested;
+        UIEvents.OnSnapViewRequested -= HandleSnapViewRequested;
 
         ToggleSelection(false);
     }
@@ -147,13 +147,13 @@ public class ScanController : MonoBehaviour
         {
             MakeHighlighted();
 
-            ScanEvents.NotifyScanSelected(gameObject);
+            UIEvents.NotifyScanSelected(gameObject);
         }
         else
         {
             MakeDefault();
 
-            ScanEvents.NotifyScanDeselected(gameObject);
+            UIEvents.NotifyScanDeselected(gameObject);
         }
     }
 
@@ -250,7 +250,7 @@ public class ScanController : MonoBehaviour
 
         _isLeader = true;
 
-        ScanEvents.RequestGroupGrabStart(transform);
+        UIEvents.RequestGroupGrabStart(transform);
     }
 
     private void OnReleased(SelectExitEventArgs args)
@@ -259,7 +259,7 @@ public class ScanController : MonoBehaviour
         {
             _isLeader = false;
 
-            ScanEvents.RequestGroupGrabEnd();
+            UIEvents.RequestGroupGrabEnd();
         }
     }
 

@@ -1,15 +1,15 @@
 using UnityEngine;
 
-public class ScanAligner : MonoBehaviour
+public class BaseAligner : MonoBehaviour
 {
 	private void OnEnable()
 	{
-		ScanEvents.OnAlignBasesRequested += HandleAlignRequested;
+		UIEvents.OnAlignBasesRequested += HandleAlignRequested;
 	}
 
 	private void OnDisable()
 	{
-		ScanEvents.OnAlignBasesRequested -= HandleAlignRequested;
+		UIEvents.OnAlignBasesRequested -= HandleAlignRequested;
 	}
 
 	// simulate backing a mesh up into a flat wall until it hits
@@ -63,7 +63,7 @@ public class ScanAligner : MonoBehaviour
 
 		if (selectedCount != 2 || upper == null || lower == null)
 		{
-			ScanEvents.RequestUIMessage("Please select exactly one Upper Base and one Lower Base to align.");
+			UIEvents.RequestUIMessage("Please select exactly one Upper Base and one Lower Base to align.");
 
 			return;
 		}
@@ -123,6 +123,6 @@ public class ScanAligner : MonoBehaviour
         // apply the final offset to upper
         upper.transform.position += new Vector3(offsetX, offsetY, offsetZ);
 
-		ScanEvents.RequestUIMessage("Bases Aligned Face-Up!");
+		UIEvents.RequestUIMessage("Bases Aligned Face-Up!");
 	}
 }
