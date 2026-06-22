@@ -146,14 +146,10 @@ public class ScanController : MonoBehaviour
         if (Selected)
         {
             MakeHighlighted();
-
-            UIEvents.NotifyScanSelected(gameObject);
         }
         else
         {
             MakeDefault();
-
-            UIEvents.NotifyScanDeselected(gameObject);
         }
     }
 

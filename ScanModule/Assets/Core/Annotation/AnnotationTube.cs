@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-public class AnnotationTubeGenerator : MonoBehaviour
+public class AnnotationTube : MonoBehaviour
 {
     private Mesh _mesh;
 
@@ -145,7 +145,7 @@ public class AnnotationTubeGenerator : MonoBehaviour
         _mesh.RecalculateBounds();
     }
 
-    public void SetMaterial(Material material)
+    public void SetTubeMaterial(Material material)
     {
         GetComponent<MeshRenderer>().sharedMaterial = material;
     }

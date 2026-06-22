@@ -17,12 +17,6 @@ public class UIEvents
 	// importing scans
 	public static event Action<string> OnImportScanRequested;
 	public static void RequestImportScan(string path) => OnImportScanRequested?.Invoke(path);
-
-	// selecting scans
-	public static event Action<GameObject> OnScanSelected;
-	public static event Action<GameObject> OnScanDeselected;
-	public static void NotifyScanSelected(GameObject scan) => OnScanSelected?.Invoke(scan);
-	public static void NotifyScanDeselected(GameObject scan) => OnScanDeselected?.Invoke(scan);
 	
 	// deleting selected scans
 	public static event Action OnResetRequested;

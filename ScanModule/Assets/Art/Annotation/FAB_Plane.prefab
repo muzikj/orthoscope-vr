@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 3501618060610957054}
   - component: {fileID: 5836944873920087543}
   - component: {fileID: 439827446921245592}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: FAB_Plane
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 6058529123916210670}
   - component: {fileID: 8976648775253570557}
   - component: {fileID: 5138537576238785701}
-  m_Layer: 0
+  m_Layer: 9
   m_Name: FAB_MarkClosingLoop_Ghost
   m_TagString: Untagged
   m_Icon: {fileID: 0}

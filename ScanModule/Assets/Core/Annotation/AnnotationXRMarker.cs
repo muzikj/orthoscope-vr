@@ -149,11 +149,11 @@ public class AnnotationXRMarker : MonoBehaviour
 
             if (IsMarkingPlanes)
             {
-                BaseBuilder.Instance.AddPoint(activeGhost.position, activeGhost.forward, _currentSpline.transform);
+                BaseBuilder.Instance.AddPlanarPoint(activeGhost.position, activeGhost.forward, _currentSpline.transform);
             }
             else if (!_currentSpline.bClosed)
             {
-                _currentSpline.AddMark(activeGhost.position, activeGhost.forward);
+                _currentSpline.AddSplinePoint(activeGhost.position, activeGhost.forward);
             }
         }
     }
@@ -162,11 +162,11 @@ public class AnnotationXRMarker : MonoBehaviour
     {
         if (IsMarkingPlanes)
         {
-            BaseBuilder.Instance.RemoveLastPoint();
+            BaseBuilder.Instance.RemoveLastPlanarPoint();
         }
         else if (_currentSpline != null)
         {
-            _currentSpline.RemoveLastMark();
+            _currentSpline.RemoveLastSplinePoint();
         }
     }
 }

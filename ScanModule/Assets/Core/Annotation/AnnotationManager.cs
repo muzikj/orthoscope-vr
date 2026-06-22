@@ -2,12 +2,12 @@ using UnityEngine;
 
 using System.Collections.Generic;
 
-[RequireComponent(typeof(AnnotationTubeGenerator))]
+[RequireComponent(typeof(AnnotationTube))]
 public class AnnotationManager : MonoBehaviour
 {
     public bool bClosed = false;
 
-    private AnnotationTubeGenerator _tubeRenderer;
+    private AnnotationTube _tubeRenderer;
 
     private List<Vector3> _markLocations = new();
     private List<Vector3> _markNormals = new();
@@ -15,7 +15,7 @@ public class AnnotationManager : MonoBehaviour
 
     private void Awake()
     {
-        _tubeRenderer = GetComponent<AnnotationTubeGenerator>();
+        _tubeRenderer = GetComponent<AnnotationTube>();
     }
 
     private void OnEnable()
@@ -53,7 +53,7 @@ public class AnnotationManager : MonoBehaviour
         return false;
     }
 
-    public void AddMark(Vector3 position, Vector3 normal)
+    public void AddSplinePoint(Vector3 position, Vector3 normal)
     {
         if (bClosed) return;
 
@@ -65,7 +65,7 @@ public class AnnotationManager : MonoBehaviour
         {
             bClosed = true;
 
-            _tubeRenderer.SetMaterial(Config.Instance.loopSplineMaterial);
+            _tubeRenderer.SetTubeMaterial(Config.Instance.loopSplineMaterial);
             _tubeRenderer.RenderTube(GenerateProjectedSpline(), bClosed);
 
             return; // we don't want a new mark here
@@ -86,13 +86,13 @@ public class AnnotationManager : MonoBehaviour
         _tubeRenderer.RenderTube(GenerateProjectedSpline(), bClosed);
     }
 
-    public void RemoveLastMark()
+    public void RemoveLastSplinePoint()
     {
         if (bClosed)
         {
             bClosed = false;
 
-            _tubeRenderer.SetMaterial(Config.Instance.splineMaterial);
+            _tubeRenderer.SetTubeMaterial(Config.Instance.splineMaterial);
             _tubeRenderer.RenderTube(GenerateProjectedSpline(), bClosed);
 
             return;
@@ -113,11 +113,11 @@ public class AnnotationManager : MonoBehaviour
         }
     }
 
-    public void ClearMarks()
+    public void ClearSplineMarks()
     {
         bClosed = false;
 
-        _tubeRenderer.SetMaterial(Config.Instance.splineMaterial);
+        _tubeRenderer.SetTubeMaterial(Config.Instance.splineMaterial);
 
         _markLocations.Clear();
         _markNormals.Clear();

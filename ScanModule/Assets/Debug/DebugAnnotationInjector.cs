@@ -183,11 +183,11 @@ public class DebugAnnotationInjector : MonoBehaviour
 
 			if (target == TargetSystem.BaseBuilder)
 			{
-				BaseBuilder.Instance.AddPoint(worldPos, worldForward, activeSpline.transform);
+				BaseBuilder.Instance.AddPlanarPoint(worldPos, worldForward, activeSpline.transform);
 			}
 			else if (target == TargetSystem.SplineLoop)
 			{
-				activeSpline.AddMark(worldPos, worldForward);
+				activeSpline.AddSplinePoint(worldPos, worldForward);
 			}
 		}
 

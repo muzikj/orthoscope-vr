@@ -76,9 +76,12 @@ public class ScanSpawner : MonoBehaviour
             await Task.Run(() => Physics.BakeMesh(meshEntityId, false));
             raycastCollider.sharedMesh = mesh;
 
-            // make it grabbable in VR (with snap-to-hand behavior off)
+            // make it grabbable in VR (with snap-to-hand behavior off, throwing off, and with the simple BoxCollider)
             XRGrabInteractable grabInteractable = scan.AddComponent<XRGrabInteractable>();
             grabInteractable.useDynamicAttach = true;
+            grabInteractable.throwOnDetach = false;
+            grabInteractable.colliders.Clear();
+            grabInteractable.colliders.Add(collider);
 
             // disable collisions and disable gravity
             if (!scan.TryGetComponent<Rigidbody>(out var rigidbody))
@@ -106,9 +109,9 @@ public class ScanSpawner : MonoBehaviour
             splineCanvas.transform.SetParent(scan.transform, false);
 
             AnnotationManager scanSpline = splineCanvas.AddComponent<AnnotationManager>();
-            if (!splineCanvas.TryGetComponent<AnnotationTubeGenerator>(out var tubeRenderer))
+            if (!splineCanvas.TryGetComponent<AnnotationTube>(out var tubeRenderer))
             {
-                tubeRenderer = splineCanvas.AddComponent<AnnotationTubeGenerator>();
+                tubeRenderer = splineCanvas.AddComponent<AnnotationTube>();
             }
 
             if (!splineCanvas.TryGetComponent<MeshRenderer>(out var tubeMeshRenderer))

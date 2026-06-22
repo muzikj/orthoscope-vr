@@ -120,7 +120,13 @@ public class BaseBuilder : MonoBehaviour
 			}
 
 			currentState = BuilderState.MarkSagittal;
-			UIEvents.RequestUIMessage("State Advanced\nNow marking Sagittal Plane (2 points on upper palate).");
+
+            if (_occlusalPlanePreview != null)
+            {
+                _occlusalPlanePreview.SetActive(false);
+            }
+
+            UIEvents.RequestUIMessage("State Advanced\nNow marking Sagittal Plane (2 points on upper palate).");
 		}
 		else if (currentState == BuilderState.MarkSagittal)
 		{
@@ -138,7 +144,7 @@ public class BaseBuilder : MonoBehaviour
 			DestroyPlanePoints();
 
 			currentState = BuilderState.MarkUpperGums;
-			UIEvents.RequestUIMessage("State Advanced\nNow marking Gum Splines. AnnotationTubeGenerator active!");
+			UIEvents.RequestUIMessage("State Advanced\nNow marking Gum Splines. AnnotationTube active!");
 		}
 		else if (currentState == BuilderState.MarkUpperGums)
 		{
@@ -575,7 +581,7 @@ public class BaseBuilder : MonoBehaviour
 			controller.UpdateOriginalState();
 		}
 
-		spline.ClearMarks();
+		spline.ClearSplineMarks();
 
 		spline.gameObject.SetActive(false);
 	}
@@ -785,7 +791,7 @@ public class BaseBuilder : MonoBehaviour
 		mesh.RecalculateBounds();
 	}
 
-	public void AddPoint(Vector3 worldPosition, Vector3 normal, Transform scanTransform)
+	public void AddPlanarPoint(Vector3 worldPosition, Vector3 normal, Transform scanTransform)
 	{
 		if (currentState == BuilderState.MarkOcclusal && _occlusalPoints.Count >= 3) return;
 		if (currentState == BuilderState.MarkSagittal && _sagittalPoints.Count >= 2) return;
@@ -819,7 +825,7 @@ public class BaseBuilder : MonoBehaviour
 		UpdatePlanePreviews(scanTransform);
 	}
 
-	public void RemoveLastPoint()
+	public void RemoveLastPlanarPoint()
 	{
 		if (currentState == BuilderState.MarkOcclusal && _occlusalPoints.Count > 0)
 		{
@@ -1471,8 +1477,8 @@ public class BaseBuilder : MonoBehaviour
 			return;
 		}
 
-		// occlusal plane preview
-		if (_occlusalPoints.Count == 3)
+        // occlusal plane preview
+        if (_occlusalPoints.Count == 3 && ((currentState == BuilderState.MarkOcclusal) || (currentState == BuilderState.MarkSagittal && _sagittalPoints.Count == 2)))
 		{
 			if (_occlusalPlanePreview == null)
 			{
